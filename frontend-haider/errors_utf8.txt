@@ -1,0 +1,7 @@
+﻿src/app/admin/classes/page.tsx(203,9): error TS1005: ')' expected.
+src/app/admin/classes/page.tsx(203,11): error TS17015: Expected corresponding closing tag for JSX fragment.
+src/app/admin/classes/page.tsx(204,7): error TS1109: Expression expected.
+src/app/admin/classes/page.tsx(455,5): error TS1128: Declaration or statement expected.
+src/app/admin/classes/page.tsx(455,7): error TS1109: Expression expected.
+src/app/admin/classes/page.tsx(456,3): error TS1109: Expression expected.
+src/app/admin/classes/page.tsx(457,1): error TS1128: Declaration or statement expected.
