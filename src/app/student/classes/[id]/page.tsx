@@ -32,6 +32,13 @@ interface ChapterContent {
   quiz?: any;
   qa_bank?: any;
   ppt_structure?: any;
+  latest_attempt?: {
+    quiz_attempt_id: string;
+    score: number;
+    total_questions: number;
+    percentage: number;
+    submitted_date: string;
+  } | null;
 }
 
 interface StudentClass {
@@ -58,6 +65,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
   const [isTakingQuiz, setIsTakingQuiz] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<{ score: number; total: number; percentage: number } | null>(null);
+  const [quizDetail, setQuizDetail] = useState<any>(null);
   const [serverAttemptMessage, setServerAttemptMessage] = useState<string | null>(null);
 
   // Reset quiz states when chapter or content type changes
@@ -65,8 +73,28 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
     setIsTakingQuiz(false);
     setQuizAnswers({});
     setQuizResult(null);
+    setQuizDetail(null);
     setServerAttemptMessage(null);
   }, [activeChapterId, selectedContentType]);
+
+  // Fetch full quiz result if attempt exists
+  useEffect(() => {
+    const fetchQuizResult = async () => {
+      if (selectedContentType === 'quiz' && chapterContent?.latest_attempt?.quiz_attempt_id) {
+        try {
+          const res = await apiFetch(`/student/quiz-attempts/${chapterContent.latest_attempt.quiz_attempt_id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setQuizDetail(data);
+          }
+        } catch (err) {
+          console.error('Error fetching quiz result:', err);
+        }
+      }
+    };
+
+    fetchQuizResult();
+  }, [selectedContentType, chapterContent?.latest_attempt?.quiz_attempt_id]);
 
   useEffect(() => {
     const loadClassData = async () => {
@@ -224,11 +252,10 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
       return <div style={{ fontSize: 13, color: 'var(--text-meta)' }}>Quiz data is in an unexpected format.</div>;
     }
 
-    const score = (quiz as any).score ?? (quizBody as any).score ?? null;
-    const total = (quiz as any).total_questions ?? (quizBody as any).total_questions ?? mcqs.length;
-    const attempted = (quiz as any).attempted || (quizBody as any).attempted || score !== null;
-    const previewAnwsers = (quizBody as any).student_answers || (quizBody as any).answers || {};
-    const percentage = (score !== null && total > 0) ? ((Number(score) / Number(total)) * 100).toFixed(1) : null;
+    const score = quizResult?.score ?? chapterContent?.latest_attempt?.score ?? null;
+    const total = quizResult?.total ?? chapterContent?.latest_attempt?.total_questions ?? mcqs.length;
+    const attempted = !!chapterContent?.latest_attempt;
+    const percentage = quizResult?.percentage ?? chapterContent?.latest_attempt?.percentage ?? null;
 
     const normalizedQuestions = mcqs.map((item: any, i: number) => {
       const questionText = item?.question_text || item?.question || item?.q || item?.prompt || `Question ${i + 1}`;
@@ -251,55 +278,44 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
     };
 
     const submitQuiz = async () => {
-      const correctCount = normalizedQuestions.reduce((acc, q) => {
-        const selected = quizAnswers[q.id];
-        if (!selected) return acc;
-        const correctKey = q.correctKey;
-        if (!correctKey) return acc;
-        if (`${selected}`.trim().toLowerCase() === `${correctKey}`.trim().toLowerCase()) return acc + 1;
-        const selectedValue = q.options.find((o) => o.key === selected)?.value;
-        const correctOption = q.options.find((o) => o.key === correctKey)?.value;
-        if (selectedValue && correctOption && selectedValue.trim() === correctOption.trim()) return acc + 1;
-        return acc;
-      }, 0);
+      if (!chapterContent?.class_chapter_id) return;
 
-      const attemptedScore = Number(correctCount);
-      const attemptedTotal = normalizedQuestions.length;
-      const attemptedPercentage = Number(((attemptedScore / attemptedTotal) * 100).toFixed(1));
-
-      setQuizResult({ score: attemptedScore, total: attemptedTotal, percentage: attemptedPercentage });
       setIsTakingQuiz(false);
 
       try {
         const payload = {
-          class_chapter_id: chapterContent?.class_chapter_id,
-          subject: chapterContent?.subject,
-          quiz_answers: normalizedQuestions.map((q) => ({ question_id: q.id, selected_answer: quizAnswers[q.id] ?? null })),
-          score: attemptedScore,
-          total_questions: attemptedTotal,
-          percentage: attemptedPercentage,
+          student_answers: quizAnswers
         };
 
-        const res = await apiFetch('/student/quiz-attempt', {
+        const res = await apiFetch(`/student/quiz/${chapterContent.class_chapter_id}/submit`, {
           method: 'POST',
           body: JSON.stringify(payload),
         });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          setServerAttemptMessage(`Saved locally, but failed to sync: ${errText}`);
-        } else {
+        if (res.ok) {
+          const resultData = await res.json();
+          setQuizResult({
+            score: resultData.score,
+            total: resultData.total_questions,
+            percentage: resultData.percentage
+          });
           setServerAttemptMessage('Quiz submitted successfully.');
+
+          // Refresh chapter content to get latest_attempt
+          loadChapterContent(chapterContent.class_chapter_id);
+        } else {
+          const errText = await res.text();
+          setServerAttemptMessage(`Failed to submit: ${errText}`);
         }
       } catch (e) {
-        setServerAttemptMessage('Failed to submit attempt to server. Saved locally.');
+        setServerAttemptMessage('Failed to submit attempt to server.');
       }
     };
 
     const renderAttemptedInfo = () => {
-      const finalScore = quizResult?.score ?? score ?? 0;
-      const finalTotal = quizResult?.total ?? total ?? normalizedQuestions.length;
-      const finalPercentage = quizResult?.percentage ?? (Number(percentage) || 0);
+      const finalScore = score ?? 0;
+      const finalTotal = total ?? normalizedQuestions.length;
+      const finalPercentage = percentage ?? 0;
       return (
         <div style={{ padding: 12, borderRadius: 12, background: '#ECFDF5', border: '1px solid #D1FAE5' }}>
           <div style={{ fontWeight: 700, color: '#065F46' }}>Quiz Result</div>
@@ -329,14 +345,19 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
         )}
 
         {(isTakingQuiz || isCompleted) && normalizedQuestions.map((q, i) => {
-          const selectedKey = quizAnswers[q.id] ?? (attempted ? previewAnwsers[q.id] ?? '' : '');
+          // Find this question in quizDetail if available
+          const questionDetail = quizDetail?.questions?.find((qd: any) => String(qd.id) === String(q.id));
+
+          const selectedKey = quizAnswers[q.id] ?? questionDetail?.student_answer ?? '';
+          const correctKey = q.correctKey ?? questionDetail?.correct_answer;
+
           return (
             <div key={q.id} style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 700, marginBottom: 10 }}>Q{ i + 1 }: {q.questionText}</div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {q.options.map((opt) => {
-                  const isCorrectValue = q.correctKey && `${opt.key}`.trim().toLowerCase() === `${q.correctKey}`.trim().toLowerCase();
+                  const isCorrectValue = correctKey && `${opt.key}`.trim().toLowerCase() === `${correctKey}`.trim().toLowerCase();
                   const isSelected = `${opt.key}`.trim().toLowerCase() === `${selectedKey}`.trim().toLowerCase();
                   const showAsCorrect = isCompleted && isCorrectValue;
                   const showAsSelected = isSelected;
@@ -352,6 +373,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                       borderColor: showAsCorrect ? '#10B981' : showAsSelected ? '#3B82F6' : '#CBD5E1',
                       background: showAsCorrect ? '#DCFCE7' : showAsSelected ? '#DBEAFE' : 'white',
                       color: showAsCorrect ? '#065F46' : showAsSelected ? '#1D4ED8' : '#1F2937',
+                      cursor: isCompleted && !isTakingQuiz ? 'default' : 'pointer'
                     }}>
                       <input
                         type="radio"
@@ -362,15 +384,17 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                         onChange={() => onOptionChange(q.id, opt.key)}
                       />
                       <span><strong>{opt.key}</strong>. {opt.value}</span>
-                      {isCorrectValue && isCompleted && <span style={{ marginLeft: 'auto', color: '#065F46', fontWeight: 700 }}>Correct</span>}
-                      {isSelected && isCompleted && !isCorrectValue && <span style={{ marginLeft: 'auto', color: '#DC2626', fontWeight: 700 }}>Your answer</span>}
+                      {showAsCorrect && <span style={{ marginLeft: 'auto', color: '#065F46', fontWeight: 700 }}>Correct</span>}
+                      {showAsSelected && isCompleted && !isCorrectValue && <span style={{ marginLeft: 'auto', color: '#DC2626', fontWeight: 700 }}>Your answer</span>}
                     </label>
                   );
                 })}
               </div>
 
-              {q.explanation && isCompleted && (
-                <div style={{ fontSize: 13, color: 'var(--text-meta)', marginTop: 8 }}>Explanation: {q.explanation}</div>
+              {(q.explanation || questionDetail?.explanation) && isCompleted && (
+                <div style={{ fontSize: 13, color: 'var(--text-meta)', marginTop: 8 }}>
+                  Explanation: {q.explanation || questionDetail?.explanation}
+                </div>
               )}
             </div>
           );
