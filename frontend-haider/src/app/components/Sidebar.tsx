@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface SidebarProps {
-  activePage: "dashboard" | "students" | "classes" | "assignments" | "schedule" | "reports" | "performance" | "messages" | "complaints" | "settings";
+  activePage: "dashboard" | "students" | "classes" | "assignments" | "schedule" | "reports" | "performance" | "messages" | "complaints" | "settings" | "attendance" | "published";
 }
 
 export default function Sidebar({ activePage }: SidebarProps) {
@@ -95,6 +95,13 @@ export default function Sidebar({ activePage }: SidebarProps) {
               <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
             </svg>
             My Classes
+          </Link>
+          <Link href="/teacher/attendance" className={`nav-item${activePage === "attendance" ? " active" : ""}`} onClick={closeMobileSidebar}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M9 9l3 3 3-3" />
+            </svg>
+            Attendance
           </Link>
           <Link href="/teacher/assignments" className={`nav-item${activePage === "assignments" ? " active" : ""}`} onClick={closeMobileSidebar}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

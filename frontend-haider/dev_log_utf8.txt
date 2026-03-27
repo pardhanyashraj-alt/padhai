@@ -1,0 +1,43 @@
+﻿
+> eduflow@0.1.0 dev
+> next dev
+
+node.exe : ΓÜá Port 
+3000 is in use by 
+process 2624, using 
+available port 3001 
+instead.
+At line:1 char:1
++ & "C:\Program Files\
+nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (ΓÜá Port 3   
+ 000 i...t 3001 in    
+stead.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://169.254.75.45:3001
+
+Γ£ô Starting...
+Γ¿» Unable to acquire 
+lock at C:\Users\pardh
+\OneDrive\ui designby\
+frontend-haider\.next\
+dev\lock, is another 
+instance of next dev 
+running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h

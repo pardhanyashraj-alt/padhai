@@ -1,0 +1,2 @@
+﻿src/app/teacher/attendance/page.tsx(51,16): error TS2322: Type '"attendance"' is not assignable to type '"dashboard" | "students" | "classes" | "schedule" | "complaints" | "settings" | "reports" | "assignments" | "performance" | "messages"'.
+src/app/teacher/published/page.tsx(32,16): error TS2322: Type '"published"' is not assignable to type '"dashboard" | "students" | "classes" | "schedule" | "complaints" | "settings" | "reports" | "assignments" | "performance" | "messages"'.

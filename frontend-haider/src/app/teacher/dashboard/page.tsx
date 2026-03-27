@@ -130,7 +130,7 @@ export default function Home() {
             <div className="stat-label">Active Classes</div>
             <span className="stat-badge green">↑ 1 NEW CLASS</span>
           </div>
-          <div className="stat-card green">
+          <Link href="/teacher/attendance" className="stat-card green" style={{ textDecoration: 'none' }}>
             <div className="stat-icon green">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <polyline points="20 6 9 17 4 12" />
@@ -139,7 +139,7 @@ export default function Home() {
             <div className="stat-value">87%</div>
             <div className="stat-label">Avg. Attendance</div>
             <span className="stat-badge green">↑ 3% VS LAST MONTH</span>
-          </div>
+          </Link>
           <div className="stat-card purple">
             <div className="stat-icon purple">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -200,7 +200,7 @@ export default function Home() {
               </div>
               <div className="sch-body">
                 <div className="sch-title">Mathematics — Grade 10</div>
-                <div className="sch-detail">Room 204 · 45 min</div>
+                <div className="sch-detail">45 min</div>
                 <span className="tag ongoing">ONGOING</span>
               </div>
             </div>
@@ -215,7 +215,7 @@ export default function Home() {
               </div>
               <div className="sch-body">
                 <div className="sch-title">Staff Meeting</div>
-                <div className="sch-detail">Conference Room · 1hr</div>
+                <div className="sch-detail">1 hr</div>
                 <span className="tag meeting">MEETING</span>
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function Home() {
               </div>
               <div className="sch-body">
                 <div className="sch-title">English Lit — Grade 11</div>
-                <div className="sch-detail">Room 108 · 45 min</div>
+                <div className="sch-detail">45 min</div>
                 <span className="tag upcoming">UPCOMING</span>
               </div>
             </div>
@@ -277,6 +277,7 @@ export default function Home() {
                 <div className="card-title">Weekly Attendance</div>
                 <div className="card-subtitle">Students present per day</div>
               </div>
+              <Link href="/teacher/attendance" className="btn-outline" style={{ textDecoration: 'none' }}>View All</Link>
             </div>
             <div className="chart-area">
               <div className="chart-bars">
