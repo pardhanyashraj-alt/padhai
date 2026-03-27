@@ -87,7 +87,6 @@ export default function Sidebar({ activePage }: SidebarProps) {
               <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
             </svg>
             Students
-            <span className="nav-badge">142</span>
           </Link>
           <Link href="/teacher/classes" className={`nav-item${activePage === "classes" ? " active" : ""}`} onClick={closeMobileSidebar}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -109,7 +108,6 @@ export default function Sidebar({ activePage }: SidebarProps) {
               <polyline points="14 2 14 8 20 8" />
             </svg>
             Assignments
-            <span className="nav-badge">5</span>
           </Link>
           <Link href="/teacher/schedule" className={`nav-item${activePage === "schedule" ? " active" : ""}`} onClick={closeMobileSidebar}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -125,7 +123,6 @@ export default function Sidebar({ activePage }: SidebarProps) {
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
             Messages
-            <span className="nav-badge">3</span>
           </Link>
           <Link href="/teacher/complaints" className={`nav-item${activePage === "complaints" ? " active" : ""}`} onClick={closeMobileSidebar}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

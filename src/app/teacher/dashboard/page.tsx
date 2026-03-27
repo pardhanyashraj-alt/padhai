@@ -1,39 +1,79 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
-
-
-const initialClasses = [
-  { id: 1, initials: "MA", name: "Mathematics — Grade 10", meta: "38 students · Mon, Wed, Fri · Room 204", progress: 72, color: "fill-blue" },
-  { id: 2, initials: "SC", name: "Science — Grade 9", meta: "34 students · Tue, Thu · Lab B", progress: 58, color: "fill-orange" },
-  { id: 3, initials: "EN", name: "English Lit — Grade 11", meta: "30 students · Mon, Thu · Room 108", progress: 84, color: "fill-green" },
-  { id: 4, initials: "HI", name: "History — Grade 8", meta: "40 students · Wed, Fri · Room 301", progress: 45, color: "fill-purple" },
-];
-
-const initialStudents = [
-  { id: 1, initials: "AK", name: "Anjali Kapoor", score: "97%" },
-  { id: 2, initials: "RM", name: "Rohan Mehta", score: "94%" },
-  { id: 3, initials: "SM", name: "Shreya Mishra", score: "92%", color: "var(--purple)" },
-];
+import { apiFetch } from "../../lib/api";
 
 export default function Home() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      try {
+        const res = await apiFetch("/teacher/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          setDashboardData(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboard();
+  }, []);
+
+  const classes = useMemo(() => {
+    if (!dashboardData?.classes) return [];
+    return dashboardData.classes.map((c: any) => ({
+      id: c.class_id,
+      initials: c.subject ? c.subject.substring(0, 2).toUpperCase() : "??",
+      name: `${c.subject} — Grade ${c.grade_level}`,
+      meta: `${c.student_count} students · ${c.section} · ${c.school_name}`,
+      progress: c.total_chapters > 0 ? Math.round((c.published_chapters / c.total_chapters) * 100) : 0,
+      color: c.grade_level % 2 === 0 ? "fill-blue" : "fill-orange"
+    }));
+  }, [dashboardData]);
 
   const filteredClasses = useMemo(() => {
-    return initialClasses.filter(c => 
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    return classes.filter((c: any) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.meta.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [classes, searchTerm]);
+
+  // For now, we don't have a global "top students" across all classes in the backend 
+  // we will fetch them per class in the details page. Mocking for now or using first class students if available.
+  const students = useMemo(() => {
+    return dashboardData?.top_students || [];
+  }, [dashboardData]);
 
   const filteredStudents = useMemo(() => {
-    return initialStudents.filter(s => 
+    return students.filter((s: any) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [students, searchTerm]);
+
+  if (loading) {
+    return (
+      <>
+        <Sidebar activePage="dashboard" />
+        <main className="main flex items-center justify-center p-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="font-bold text-slate-500">Loading your dashboard...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  const teacher = dashboardData?.teacher || { first_name: "Rita" };
 
   return (
     <>
@@ -80,7 +120,7 @@ export default function Home() {
         {/* Top bar */}
         <div className="topbar">
           <div className="topbar-left">
-            <div className="greeting">Good morning, Rita 👋</div>
+            <div className="greeting">Good morning, {teacher.first_name} 👋</div>
             <h1>Teacher Dashboard</h1>
           </div>
           <div className="topbar-right">
@@ -89,9 +129,9 @@ export default function Home() {
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <input 
-                type="text" 
-                placeholder="Search students, classes…" 
+              <input
+                type="text"
+                placeholder="Search students, classes…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -105,7 +145,7 @@ export default function Home() {
             </div>
           </div>
         </div>
- 
+
         {/* Stats */}
         <div className="stats-grid">
           <div className="stat-card blue">
@@ -115,9 +155,9 @@ export default function Home() {
                 <circle cx="9" cy="7" r="4" />
               </svg>
             </div>
-            <div className="stat-value">142</div>
+            <div className="stat-value">{dashboardData?.classes?.reduce((acc: number, c: any) => acc + (c.student_count || 0), 0) || 0}</div>
             <div className="stat-label">Total Students</div>
-            <span className="stat-badge green">↑ 8 THIS WEEK</span>
+            <span className="stat-badge green">↑ 0 THIS WEEK</span>
           </div>
           <div className="stat-card orange">
             <div className="stat-icon orange">
@@ -126,9 +166,9 @@ export default function Home() {
                 <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
               </svg>
             </div>
-            <div className="stat-value">6</div>
+            <div className="stat-value">{dashboardData?.total_classes || 0}</div>
             <div className="stat-label">Active Classes</div>
-            <span className="stat-badge green">↑ 1 NEW CLASS</span>
+            <span className="stat-badge green">↑ 0 NEW CLASS</span>
           </div>
           <Link href="/teacher/attendance" className="stat-card green" style={{ textDecoration: 'none' }}>
             <div className="stat-icon green">
@@ -136,9 +176,9 @@ export default function Home() {
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <div className="stat-value">87%</div>
+            <div className="stat-value">--%</div>
             <div className="stat-label">Avg. Attendance</div>
-            <span className="stat-badge green">↑ 3% VS LAST MONTH</span>
+            <span className="stat-badge green">STABLE</span>
           </Link>
           <div className="stat-card purple">
             <div className="stat-icon purple">
@@ -163,8 +203,8 @@ export default function Home() {
               </div>
               <Link href="/teacher/classes" className="btn-outline" style={{ textDecoration: 'none' }}>View All</Link>
             </div>
-            {filteredClasses.length > 0 ? filteredClasses.map(c => (
-              <div className="class-row" key={c.id}>
+            {filteredClasses.length > 0 ? filteredClasses.map((c: any) => (
+              <Link href={`/teacher/classes/${c.id}`} className="class-row" key={c.id} style={{ textDecoration: 'none' }}>
                 <div className={`class-icon avatar ${c.initials.toLowerCase()}`}>{c.initials}</div>
                 <div className="class-info">
                   <div className="class-name">{c.name}</div>
@@ -176,7 +216,7 @@ export default function Home() {
                     <div className={`progress-fill ${c.color}`} style={{ width: `${c.progress}%` }}></div>
                   </div>
                 </div>
-              </div>
+              </Link>
             )) : (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-meta)' }}>No classes found matching &quot;{searchTerm}&quot;</div>
             )}
@@ -260,7 +300,7 @@ export default function Home() {
                 <div className="card-subtitle">By overall score this term</div>
               </div>
             </div>
-            {filteredStudents.length > 0 ? filteredStudents.map(s => (
+            {filteredStudents.length > 0 ? filteredStudents.map((s: any) => (
               <div className="student-row" key={s.id}>
                 <div className={`avatar ${s.initials.toLowerCase()}`} style={{ background: s.color }}>{s.initials}</div>
                 <div className="student-name">{s.name}</div>

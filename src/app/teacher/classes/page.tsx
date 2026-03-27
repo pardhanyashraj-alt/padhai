@@ -1,44 +1,128 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
-import { mockBooks, mockChapters, mockPerformance, ContentType } from "../../data/mockData";
+import { apiFetch } from "../../lib/api";
+import { mockPerformance } from "../../data/mockData";
 
-const classesData = [
-  { id: 1, initials: "MA", name: "Mathematics", grade: "Grade 10", section: "A", meta: "38 students · Mon, Wed, Fri", students: 38, schedule: "Mon, Wed, Fri", time: "8:30 — 9:15 AM", progress: 72, color: "var(--blue)", fillClass: "fill-blue", topScore: "97%", avgScore: "82%", nextTopic: "Quadratic Equations", recentActivity: "Algebra Chapter 5 Quiz graded", recentTime: "2 hours ago" },
-  { id: 2, initials: "SC", name: "Science", grade: "Grade 9", section: "B", meta: "34 students · Tue, Thu", students: 34, schedule: "Tue, Thu", time: "9:30 — 10:15 AM", progress: 58, color: "var(--orange)", fillClass: "fill-orange", topScore: "91%", avgScore: "76%", nextTopic: "Chemical Reactions", recentActivity: "Lab report submissions open", recentTime: "Yesterday" },
-  { id: 3, initials: "EN", name: "English Literature", grade: "Grade 11", section: "A", meta: "30 students · Mon, Thu", students: 30, schedule: "Mon, Thu", time: "1:00 — 1:45 PM", progress: 84, color: "var(--green)", fillClass: "fill-green", topScore: "92%", avgScore: "79%", nextTopic: "Shakespearean Sonnets", recentActivity: "Poetry Analysis Essay assigned", recentTime: "3 hours ago" },
-  { id: 4, initials: "HI", name: "History", grade: "Grade 8", section: "C", meta: "40 students · Wed, Fri", students: 40, schedule: "Wed, Fri", time: "11:00 — 11:45 AM", progress: 45, color: "var(--purple)", fillClass: "fill-purple", topScore: "85%", avgScore: "71%", nextTopic: "Mughal Empire", recentActivity: "Chapter 7 Test scheduled", recentTime: "1 day ago" },
-  { id: 5, initials: "PH", name: "Physics", grade: "Grade 11", section: "A", meta: "28 students · Tue, Fri", students: 28, schedule: "Tue, Fri", time: "2:00 — 2:45 PM", progress: 63, color: "var(--blue-mid)", fillClass: "fill-blue", topScore: "94%", avgScore: "77%", nextTopic: "Newton's Laws", recentActivity: "Practical demo completed", recentTime: "4 hours ago" },
-  { id: 6, initials: "CS", name: "Computer Science", grade: "Grade 10", section: "B", meta: "32 students · Mon, Wed", students: 32, schedule: "Mon, Wed", time: "10:00 — 10:45 AM", progress: 70, color: "var(--amber)", fillClass: "fill-orange", topScore: "89%", avgScore: "80%", nextTopic: "Python Functions", recentActivity: "Coding assignment reviewed", recentTime: "5 hours ago" },
-];
+interface ClassData {
+  id: string;
+  initials: string;
+  name: string;
+  grade: string;
+  section: string;
+  meta: string;
+  students: number;
+  schedule: string;
+  time: string;
+  progress: number;
+  color: string;
+  fillClass: string;
+  topScore: string;
+  avgScore: string;
+  nextTopic: string;
+  recentActivity: string;
+  recentTime: string;
+  grade_level_raw: number;
+  subject_raw: string;
+}
 
 interface AIModalData {
-  classId: number;
+  classId: string;
   className: string;
   subject: string;
-  contentType: ContentType;
+  contentType: string;
+  grade_level: number;
 }
 
 export default function ClassesPage() {
   const router = useRouter();
-  const totalStudents = classesData.reduce((a, b) => a + b.students, 0);
-  const avgProgress = Math.round(classesData.reduce((a, b) => a + b.progress, 0) / classesData.length);
-
+  const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  
   // AI Modal state
   const [aiModal, setAIModal] = useState<AIModalData | null>(null);
   const [aiBook, setAIBook] = useState("");
   const [aiChapter, setAIChapter] = useState("");
   const [aiError, setAIError] = useState("");
+  const [availableBooks, setAvailableBooks] = useState<string[]>([]);
 
-  // Performance section state
-  const [perfClass, setPerfClass] = useState(classesData[0].id);
-  const [perfSubject, setPerfSubject] = useState(classesData[0].name);
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const res = await apiFetch("/teacher/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.classes.map((c: any) => ({
+            id: c.class_id,
+            initials: c.subject ? c.subject.substring(0, 2).toUpperCase() : "??",
+            name: c.subject || "No Subject",
+            grade: `Grade ${c.grade_level}`,
+            section: c.section,
+            meta: `${c.student_count || 0} students · ${c.section}`,
+            students: c.student_count || 0,
+            schedule: "TBD", 
+            time: "TBD", 
+            progress: c.total_chapters > 0 ? Math.round((c.published_chapters / c.total_chapters) * 100) : 0,
+            color: c.grade_level % 2 === 0 ? "var(--blue)" : "var(--orange)",
+            fillClass: c.grade_level % 2 === 0 ? "fill-blue" : "fill-orange",
+            topScore: "--%",
+            avgScore: "--%",
+            nextTopic: "N/A",
+            recentActivity: "N/A",
+            recentTime: "",
+            grade_level_raw: c.grade_level,
+            subject_raw: c.subject
+          }));
+          setClasses(mapped);
+          if (mapped.length > 0) {
+            setPerfClass(mapped[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch classes:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchClasses();
+  }, []);
 
-  const openAIModal = (cls: typeof classesData[0], contentType: ContentType) => {
-    setAIModal({ classId: cls.id, className: `${cls.grade} - Section ${cls.section}`, subject: cls.name, contentType });
+  // Fetch books when AI modal opens
+  useEffect(() => {
+    if (aiModal) {
+      async function fetchBooks() {
+        try {
+          const res = await apiFetch(`/teacher/book-names?grade_level=${aiModal.grade_level}&subject=${encodeURIComponent(aiModal.subject)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setAvailableBooks(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch books:", err);
+        }
+      }
+      fetchBooks();
+    } else {
+      setAvailableBooks([]);
+    }
+  }, [aiModal]);
+
+  const totalStudents = classes.reduce((a, b) => a + b.students, 0);
+  const avgProgress = classes.length > 0 
+    ? Math.round(classes.reduce((a, b) => a + b.progress, 0) / classes.length)
+    : 0;
+
+  const openAIModal = (cls: ClassData, contentType: string) => {
+    setAIModal({ 
+      classId: cls.id, 
+      className: `${cls.grade} - Section ${cls.section}`, 
+      subject: cls.subject_raw, 
+      contentType,
+      grade_level: cls.grade_level_raw
+    });
     setAIBook("");
     setAIChapter("");
     setAIError("");
@@ -49,11 +133,26 @@ export default function ClassesPage() {
     if (!aiBook) { setAIError("Please select a book."); return; }
     if (!aiChapter) { setAIError("Please select a chapter."); return; }
     if (!aiModal) return;
-    router.push(`/teacher/ai-output?type=${encodeURIComponent(aiModal.contentType)}&book=${encodeURIComponent(aiBook)}&chapter=${encodeURIComponent(aiChapter)}&subject=${encodeURIComponent(aiModal.subject)}`);
+    router.push(`/teacher/ai-output?type=${encodeURIComponent(aiModal.contentType)}&book=${encodeURIComponent(aiBook)}&chapter=${encodeURIComponent(aiChapter)}&subject=${encodeURIComponent(aiModal.subject)}&grade=${aiModal.grade_level}&classId=${aiModal.classId}`);
     setAIModal(null);
   };
 
-  const selectedClass = classesData.find(c => c.id === perfClass) || classesData[0];
+  const [perfClass, setPerfClass] = useState<string>("");
+  const selectedClass = classes.find(c => c.id === perfClass) || classes[0];
+
+  if (loading) {
+    return (
+      <>
+        <Sidebar activePage="classes" />
+        <main className="main flex items-center justify-center p-20">
+          <div className="flex flex-col items-center gap-4">
+             <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+             <p className="font-bold text-slate-500">Loading your classes...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -82,7 +181,7 @@ export default function ClassesPage() {
                     <label className="form-label">Book Name</label>
                     <select className="form-input" value={aiBook} onChange={e => { setAIBook(e.target.value); setAIError(""); }}>
                       <option value="">Select Book</option>
-                      {mockBooks.map(b => <option key={b} value={b}>{b}</option>)}
+                      {availableBooks.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -99,7 +198,7 @@ export default function ClassesPage() {
                     <label className="form-label">Chapter Number</label>
                     <select className="form-input" value={aiChapter} onChange={e => { setAIChapter(e.target.value); setAIError(""); }}>
                       <option value="">Select Chapter</option>
-                      {mockChapters.map(c => <option key={c} value={c}>{c}</option>)}
+                      {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(c => <option key={c} value={c}>Chapter {c}</option>)}
                     </select>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -143,9 +242,9 @@ export default function ClassesPage() {
         <div className="stats-grid">
           <div className="stat-card blue">
             <div className="stat-icon blue"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" /></svg></div>
-            <div className="stat-value">{classesData.length}</div>
+            <div className="stat-value">{classes.length}</div>
             <div className="stat-label">Total Classes</div>
-            <span className="stat-badge green">↑ 1 NEW THIS TERM</span>
+            <span className="stat-badge green">ASSIGNED TO YOU</span>
           </div>
           <div className="stat-card orange">
             <div className="stat-icon orange"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg></div>
@@ -157,19 +256,19 @@ export default function ClassesPage() {
             <div className="stat-icon green"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg></div>
             <div className="stat-value">{avgProgress}%</div>
             <div className="stat-label">Avg. Progress</div>
-            <span className="stat-badge green">↑ 5% VS LAST TERM</span>
+            <span className="stat-badge green">CURRICULUM COMPLETION</span>
           </div>
           <div className="stat-card purple">
             <div className="stat-icon purple"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg></div>
-            <div className="stat-value">8:30</div>
+            <div className="stat-value">--:--</div>
             <div className="stat-label">Next Class</div>
-            <span className="stat-badge orange">MATHEMATICS</span>
+            <span className="stat-badge orange">TBD</span>
           </div>
         </div>
 
         {/* Class Cards Grid */}
         <div className="class-cards-grid">
-          {classesData.map(cls => (
+          {classes.map(cls => (
             <div className="class-detail-card" key={cls.id}>
               {/* Card Top */}
               <div className="cdc-header">
@@ -178,22 +277,22 @@ export default function ClassesPage() {
                   <div className="cdc-name">{cls.name}</div>
                   <div className="cdc-grade">{cls.grade}</div>
                 </div>
-                <Link href={`/teacher/classes/${cls.id}`} className="btn-outline cdc-btn">Details</Link>
+                <Link href={`/teacher/classes/${cls.id}`} className="btn-outline cdc-btn" style={{ textDecoration: "none" }}>Details</Link>
               </div>
 
-              {/* Info Grid — schedule + time only (room removed) */}
+              {/* Info Grid */}
               <div className="cdc-info-grid">
                 <div className="cdc-info-item">
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--text-meta)" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                   <span>{cls.students} students</span>
                 </div>
                 <div className="cdc-info-item">
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--text-meta)" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                  <span>{cls.schedule}</span>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--text-meta)" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
+                  <span>{cls.section}</span>
                 </div>
                 <div className="cdc-info-item">
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--text-meta)" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                  <span>{cls.time}</span>
+                  <span>{cls.time !== "TBD" ? cls.time : "Schedule TBD"}</span>
                 </div>
               </div>
 
@@ -230,8 +329,6 @@ export default function ClassesPage() {
                 <span className="cdc-activity-text">{cls.recentActivity}</span>
                 <span className="cdc-activity-time">{cls.recentTime}</span>
               </div>
-
-              {/* ── AI Buttons Removed ── */}
             </div>
           ))}
         </div>
@@ -248,16 +345,11 @@ export default function ClassesPage() {
                 className="filter-select"
                 value={perfClass}
                 onChange={e => {
-                  const id = Number(e.target.value);
-                  setPerfClass(id);
-                  const cls = classesData.find(c => c.id === id);
-                  if (cls) setPerfSubject(cls.name);
+                  setPerfClass(e.target.value);
                 }}
               >
-                {classesData.map(c => <option key={c.id} value={c.id}>{c.name} ({c.grade})</option>)}
-              </select>
-              <select className="filter-select" value={perfSubject} onChange={e => setPerfSubject(e.target.value)}>
-                {classesData.filter(c => c.id === perfClass).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                <option value="">Select Class</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.grade})</option>)}
               </select>
             </div>
           </div>

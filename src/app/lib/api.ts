@@ -51,7 +51,7 @@ async function tryRefresh(): Promise<string | null> {
  */
 export async function apiFetch(
   path: string,
-  options: RequestInit = {}
+  options: Omit<RequestInit, 'body'> & { body?: any } = {}
 ): Promise<Response> {
   const accessToken = getAccessToken();
 
@@ -61,7 +61,16 @@ export async function apiFetch(
   };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+  };
+
+  if (options.body && typeof options.body === "object" && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
+    fetchOptions.body = JSON.stringify(options.body);
+  }
+
+  let res = await fetch(`${API_BASE}${path}`, fetchOptions);
 
   // If 401, attempt a single refresh cycle
   if (res.status === 401) {

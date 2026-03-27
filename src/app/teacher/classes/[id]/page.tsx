@@ -4,59 +4,42 @@ import { useState, useMemo, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import Link from "next/link";
-import { mockBooks, mockChapters, mockPublished } from "../../../data/mockData";
+import { apiFetch } from "../../../lib/api";
+import { mockPublished, mockPerformance } from "../../../data/mockData";
 
-// Shared data (In a real app, this would be fetched from an API)
-const classesData = [
-  {
-    id: 1,
-    name: "Mathematics",
-    grade: "Grade 10",
-    initials: "MA",
-    color: "var(--blue)",
-    students: 38,
-    schedule: [
-      { day: "Monday", time: "8:30am" },
-      { day: "Wednesday", time: "8:30am" },
-      { day: "Friday", time: "8:30am" },
-    ],
-    progress: 72,
-    topStudent: "Anjali Kapoor",
-    topScore: "97%",
-    avgScore: "82%",
-    nextTopic: "Quadratic Equations",
-    section: "A"
-  },
-  {
-    id: 2,
-    name: "Science",
-    grade: "Grade 9",
-    initials: "SC",
-    color: "var(--orange)",
-    students: 34,
-    schedule: [
-      { day: "Tuesday", time: "9:30am" },
-      { day: "Thursday", time: "9:30am" },
-    ],
-    progress: 58,
-    topStudent: "Neha Gupta",
-    topScore: "91%",
-    avgScore: "76%",
-    nextTopic: "Chemical Reactions",
-    section: "B"
-  },
-];
+interface Student {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  attendance: number;
+  grade: number;
+  status: string;
+}
 
-const allStudents = [
-  { id: 1, name: "Anjali Kapoor", initials: "AK", color: "var(--blue-mid)", class: "Mathematics", attendance: 96, grade: 97, status: "excellent" },
-  { id: 2, name: "Rohan Mehta", initials: "RM", color: "var(--orange)", class: "Mathematics", attendance: 91, grade: 94, status: "excellent" },
-  { id: 3, name: "Shreya Mishra", initials: "SM", color: "var(--purple)", class: "Science", attendance: 89, grade: 92, status: "good" },
-  { id: 5, name: "Priya Patel", initials: "PP", color: "var(--blue)", class: "Mathematics", attendance: 94, grade: 89, status: "good" },
-  { id: 6, name: "Vikram Singh", initials: "VS", color: "var(--orange)", class: "History", attendance: 88, grade: 85, status: "good" },
-  { id: 9, name: "Meera Iyer", initials: "MI", color: "var(--green)", class: "Mathematics", attendance: 97, grade: 88, status: "good" },
-];
+interface Chapter {
+  id: string;
+  name: string;
+  is_completed: boolean;
+}
 
-// Hardcoded placeholder removed in favor of mockPublished filtering
+interface Test {
+  id: string;
+  topic: string;
+  date: string;
+  time: string;
+}
+
+interface ClassMeta {
+  id: string;
+  name: string;
+  grade: string;
+  section: string;
+  students: number;
+  avgScore: string;
+  progress: number;
+  grade_level: number;
+}
 
 // ─── REUSABLE COMPONENTS ──────────────────────────────────────
 
@@ -87,7 +70,7 @@ function SubjectHeader({ className }: { className: string }) {
 function AIActionButtons({ onAction }: { onAction: (type: string) => void }) {
   return (
     <div className="flex gap-3 flex-wrap pt-2 pb-1">
-      <button 
+      <button
         onClick={() => onAction('Summary')}
         className="flex items-center gap-2.5 px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm shadow-indigo-100"
       >
@@ -96,7 +79,7 @@ function AIActionButtons({ onAction }: { onAction: (type: string) => void }) {
         </svg>
         Generate Summary
       </button>
-      <button 
+      <button
         onClick={() => onAction('Quiz')}
         className="flex items-center gap-2.5 px-5 py-2.5 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all shadow-sm shadow-orange-100"
       >
@@ -105,7 +88,7 @@ function AIActionButtons({ onAction }: { onAction: (type: string) => void }) {
         </svg>
         Generate Quiz
       </button>
-      <button 
+      <button
         onClick={() => onAction('Question Answer Bank')}
         className="flex items-center gap-2.5 px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-sm shadow-emerald-100"
       >
@@ -118,15 +101,15 @@ function AIActionButtons({ onAction }: { onAction: (type: string) => void }) {
   );
 }
 
-function PublishedContentCard({ item, subject }: { item: any, subject: string }) {
+function PublishedContentCard({ item, subject, classId, grade }: { item: any, subject: string, classId: string, grade: number }) {
   const router = useRouter();
-  const meta = 
+  const meta =
     item.type === "Summary" ? { bg: "bg-blue-50", text: "text-blue-600", icon: "blue" } :
-    item.type === "Quiz" ? { bg: "bg-orange-50", text: "text-orange-600", icon: "orange" } :
-    { bg: "bg-emerald-50", text: "text-emerald-600", icon: "emerald" };
+      item.type === "Quiz" ? { bg: "bg-orange-50", text: "text-orange-600", icon: "orange" } :
+        { bg: "bg-emerald-50", text: "text-emerald-600", icon: "emerald" };
 
   const handleLink = (mode: 'view' | 'edit') => {
-    router.push(`/teacher/ai-output?type=${encodeURIComponent(item.type)}&book=${encodeURIComponent(item.book)}&chapter=${encodeURIComponent(item.chapter)}&subject=${encodeURIComponent(subject)}&mode=${mode}`);
+    router.push(`/teacher/ai-output?type=${encodeURIComponent(item.type)}&book=${encodeURIComponent(item.book)}&chapter=${encodeURIComponent(item.chapter)}&subject=${encodeURIComponent(subject)}&grade=${grade}&classId=${classId}&mode=${mode}`);
   };
 
   return (
@@ -156,16 +139,34 @@ function PublishedContentCard({ item, subject }: { item: any, subject: string })
   );
 }
 
-function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: { 
-  isOpen: boolean, 
-  onClose: () => void, 
-  type: string, 
+function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
+  isOpen: boolean,
+  onClose: () => void,
+  type: string,
   classInfo: any,
   onGenerate: (book: string, chapter: string) => void
 }) {
   const [book, setBook] = useState("");
   const [chapter, setChapter] = useState("");
   const [error, setError] = useState("");
+  const [availableBooks, setAvailableBooks] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen && classInfo) {
+      async function fetchBooks() {
+        try {
+          const res = await apiFetch(`/teacher/book-names?grade_level=${classInfo.grade_level}&subject=${encodeURIComponent(classInfo.name)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setAvailableBooks(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch books:", err);
+        }
+      }
+      fetchBooks();
+    }
+  }, [isOpen, classInfo]);
 
   if (!isOpen) return null;
 
@@ -196,20 +197,20 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] font-bold flex items-center gap-2 animate-in slide-in-from-top-2">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
               {error}
             </div>
           )}
 
           <div className="space-y-1.5">
             <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest pl-1">Book Name</label>
-            <select 
-              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700" 
-              value={book} 
+            <select
+              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700"
+              value={book}
               onChange={e => { setBook(e.target.value); setError(""); }}
             >
               <option value="">Select Book</option>
-              {mockBooks.map(b => <option key={b} value={b}>{b}</option>)}
+              {availableBooks.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
 
@@ -226,13 +227,13 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
 
           <div className="space-y-1.5">
             <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest pl-1">Chapter Number</label>
-            <select 
-              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700" 
-              value={chapter} 
+            <select
+              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700"
+              value={chapter}
               onChange={e => { setChapter(e.target.value); setError(""); }}
             >
               <option value="">Select Chapter</option>
-              {mockChapters.map(c => <option key={c} value={c}>{c}</option>)}
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(c => <option key={c} value={c}>Chapter {c}</option>)}
             </select>
           </div>
 
@@ -259,209 +260,220 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
   );
 }
 
-function AIModal({ isOpen, onClose, type, book, chapter, subject }: { isOpen: boolean, onClose: () => void, type: string, book: string, chapter: string, subject: string }) {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setStep(1);
-      setProgress(0);
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => setStep(2), 500);
-            return 100;
-          }
-          return prev + 5;
-        });
-      }, 100);
-      return () => clearInterval(interval);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleViewDraft = () => {
-    router.push(`/teacher/ai-output?type=${encodeURIComponent(type)}&book=${encodeURIComponent(book)}&chapter=${encodeURIComponent(chapter)}&subject=${encodeURIComponent(subject)}&mode=edit`);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-[1700] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[440px] bg-white rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-
-        {step === 1 ? (
-          <div className="flex flex-col items-center text-center py-4">
-            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
-              <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path d="M12 4v1m6 11h2m-6 0h-18m0 0v-8m0 8l4-4m14-2a6 6 0 10-12 0v8h12v-8z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Generating {type}</h2>
-            <p className="text-slate-500 text-sm mb-8">AI is processing {book} content for {chapter}...</p>
-            
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-3">
-              <div 
-                className="h-full bg-indigo-600 rounded-full transition-all duration-300 ease-out shadow-sm shadow-indigo-100" 
-                style={{ width: `${progress}%` }} 
-              />
-            </div>
-            <div className="flex justify-between w-full text-[12px] font-bold text-slate-400">
-              <span>{progress < 40 ? 'Analyzing...' : progress < 80 ? 'Drafting...' : 'Finalizing...'}</span>
-              <span>{progress}%</span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center text-center py-4 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6">
-              <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Generation Complete!</h2>
-            <p className="text-slate-500 text-sm mb-8">Your {type.toLowerCase()} for {chapter} has been generated and saved to your drafts.</p>
-            
-            <div className="flex gap-3 w-full">
-              <button 
-                onClick={onClose}
-                className="flex-1 py-3 text-[15px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-              >
-                Close
-              </button>
-              <button 
-                onClick={handleViewDraft}
-                className="flex-1 py-3 text-[15px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-lg shadow-indigo-200"
-              >
-                View Draft
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── MAIN PAGE COMPONENT ──────────────────────────────────────
 
 export default function ClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
-  const classId = parseInt(resolvedParams.id);
-  const classInfo = classesData.find(c => c.id === classId) || classesData[0];
-  
+  const classId = resolvedParams.id;
+
+  const [loading, setLoading] = useState(true);
+  const [classMeta, setClassMeta] = useState<ClassMeta | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [curriculum, setCurriculum] = useState<Chapter[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
+  const [publishedContent, setPublishedContent] = useState<any[]>([]);
+  const [classNotFound, setClassNotFound] = useState(false);
+
   // AI Modal State
   const [showForm, setShowForm] = useState(false);
   const [selectedType, setSelectedType] = useState('');
-  const [showProgress, setShowProgress] = useState(false);
-  const [selectedBook, setSelectedBook] = useState('');
-  const [selectedChapter, setSelectedChapter] = useState('');
 
-  // Curriculum State
-  const [chapters] = useState([
-    "Real Numbers", "Polynomials", "Pair of Linear Equations", "Quadratic Equations", 
-    "Arithmetic Progressions", "Triangles", "Coordinate Geometry"
-  ]);
-  const [completedChapters, setCompletedChapters] = useState(["Real Numbers", "Polynomials"]);
-  
-  // Tests State
-  const [tests, setTests] = useState([
-    { id: 1, topic: "Algebra Basics", date: "2024-03-20", time: "10:00 AM" },
-    { id: 2, topic: "Linear Equations", date: "2024-04-05", time: "09:30 AM" },
-  ]);
+  // Test Modal State
   const [showAddTestModal, setShowAddTestModal] = useState(false);
   const [testForm, setTestForm] = useState({ topic: "", date: "", time: "" });
-  const [editingTestId, setEditingTestId] = useState<number | null>(null);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [toast, setToast] = useState("");
 
-  const currentChapter = chapters.find(c => !completedChapters.includes(c)) || "Course Completed";
-  const progressPercentage = Math.round((completedChapters.length / chapters.length) * 100);
+  useEffect(() => {
+    async function fetchData() {
+      if (!classId || classId === '[id]') return;
+      try {
+        const metaRes = await apiFetch(`/teacher/dashboard`);
+        const curriculumRes = await apiFetch(`/teacher/classes/${classId}/chapters`);
+        const pubSummary = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=summary`);
+        const pubQuiz = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=quiz`);
+        const pubQA = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=qa_bank`);
+        if (metaRes.ok) {
+          const dashData = await metaRes.json();
+          const cls = dashData.classes.find((c: any) => c.class_id === classId);
+          if (cls) {
+            setClassMeta({
+              id: cls.class_id,
+              name: cls.subject,
+              grade: `Grade ${cls.grade_level}`,
+              section: cls.section,
+              students: cls.student_count,
+              avgScore: "--%",
+              progress: Math.round((cls.published_chapters / (cls.total_chapters || 1)) * 100),
+              grade_level: cls.grade_level
+            });
+          } else {
+            setClassNotFound(true);
+          }
+        }
 
-  const handleMarkChapterCompleted = () => {
-    if (currentChapter !== "Course Completed") {
-      setCompletedChapters([...completedChapters, currentChapter]);
+        // Restore mock data for students as requested by user
+        setStudents(mockPerformance.map(m => ({
+          id: m.id,
+          name: m.name,
+          initials: m.name.split(" ").map(n => n[0]).join(""),
+          color: "var(--blue)",
+          attendance: m.attendancePct,
+          grade: m.quizScore,
+          status: m.quizScore >= 90 ? "excellent" : "good"
+        })));
+
+        // Student data is currently missing from backend, so we skip for now
+        if (curriculumRes.ok) {
+          const curData = await curriculumRes.json();
+          setCurriculum((curData.chapters || []).map((c: any) => ({
+            id: c.class_chapter_id,
+            name: c.chapter_title || `Chapter ${c.chapter_number}`,
+            is_completed: c.is_completed || false
+          })));
+        }
+        // Test data is currently missing from backend
+
+        let allPublished: any[] = [];
+        if (pubSummary.ok) {
+          const data = await pubSummary.json();
+          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Summary", date: new Date(c.published_date).toLocaleDateString() }))];
+        }
+        if (pubQuiz.ok) {
+          const data = await pubQuiz.json();
+          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Quiz", date: new Date(c.published_date).toLocaleDateString() }))];
+        }
+        if (pubQA.ok) {
+          const data = await pubQA.json();
+          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Question Answer Bank", date: new Date(c.published_date).toLocaleDateString() }))];
+        }
+        setPublishedContent(allPublished.sort((a, b) => new Date(b.published_date).getTime() - new Date(a.published_date).getTime()));
+
+      } catch (err: any) {
+        console.error("Failed to fetch class data:", err);
+        setToast(`Error fetching ${classId}: Backend unreachable or invalid UUID.`);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [classId]);
+
+  const currentChapter = curriculum.find(c => !c.is_completed) || { name: "Course Completed", id: "" };
+  const progressPercentage = curriculum.length > 0
+    ? Math.round((curriculum.filter(c => c.is_completed).length / curriculum.length) * 100)
+    : 0;
+
+  const handleToggleChapter = async (chapterId: string, isCompleted: boolean) => {
+    try {
+      // route: /class-chapters/{class_chapter_id}/complete
+      const res = await apiFetch(`/teacher/class-chapters/${chapterId}/complete?is_completed=${isCompleted}`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        setCurriculum(curriculum.map(c => c.id === chapterId ? { ...c, is_completed: isCompleted } : c));
+      }
+    } catch (err) {
+      console.error("Failed to toggle chapter:", err);
     }
   };
 
-  const handleUndoChapter = (chapter: string) => {
-    setCompletedChapters(completedChapters.filter(c => c !== chapter));
-  };
-
-  const handleAddTest = () => {
-    if (editingTestId !== null) {
-      setTests(tests.map(t => t.id === editingTestId ? { ...t, ...testForm } : t));
-      setEditingTestId(null);
-    } else {
-      setTests([...tests, { id: Date.now(), ...testForm }]);
+  const handleAddTest = async () => {
+    setIsScheduling(true);
+    try {
+      // route: POST /classes/{class_id}/tests
+      const res = await apiFetch(`/teacher/classes/${classId}/tests`, {
+        method: "POST",
+        body: testForm
+      });
+      if (res.ok) {
+        const newTestsRes = await apiFetch(`/teacher/classes/${classId}/tests`);
+        if (newTestsRes.ok) setTests(await newTestsRes.json());
+        setShowAddTestModal(false);
+        setTestForm({ topic: "", date: "", time: "" });
+      }
+    } catch (err) {
+      console.error("Failed to schedule test:", err);
+    } finally {
+      setIsScheduling(false);
     }
-    setTestForm({ topic: "", date: "", time: "" });
-    setShowAddTestModal(false);
   };
 
-  const handleDeleteTest = (id: number) => {
-    setTests(tests.filter(t => t.id !== id));
-  };
-
-  const handleEditTest = (test: any) => {
-    setTestForm({ topic: test.topic, date: test.date, time: test.time });
-    setEditingTestId(test.id);
-    setShowAddTestModal(true);
-  };
-
-  const classStudents = allStudents.filter(s => s.class === classInfo.name);
-
-  const handleActionClick = (type: string) => {
-    setSelectedType(type);
-    setShowForm(true);
+  const handleDeleteTest = async (id: string) => {
+    try {
+      // route: DELETE /tests/{test_id}
+      const res = await apiFetch(`/teacher/tests/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setTests(tests.filter(t => t.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete test:", err);
+    }
   };
 
   const handleGenerate = (book: string, chapter: string) => {
-    setSelectedBook(book);
-    setSelectedChapter(chapter);
-    setShowForm(false);
-    setShowProgress(true);
+    router.push(`/teacher/ai-output?type=${encodeURIComponent(selectedType)}&book=${encodeURIComponent(book)}&chapter=${encodeURIComponent(chapter)}&subject=${encodeURIComponent(classMeta?.name || "")}&grade=${classMeta?.grade_level}&classId=${classId}`);
   };
 
   const filteredPublishedContent = mockPublished.filter(
-    (item) => item.subject === classInfo.name
+    (item) => item.subject === classMeta?.name
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="font-bold text-slate-500 tracking-wide">Fetching Class Intelligence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (classNotFound || !classMeta) {
+    return (
+      <>
+        <Sidebar activePage="classes" />
+        <div className="main flex flex-col items-center justify-center p-20 gap-6">
+          <div className="w-24 h-24 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center text-4xl shadow-sm">⚠️</div>
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-black text-slate-800">Class Not Found</h1>
+            <p className="text-slate-500 max-w-[400px]">The class you are looking for does not exist or you don't have permission to view it.</p>
+          </div>
+          <Link href="/teacher/classes" className="btn-primary" style={{ textDecoration: "none" }}>Back to My Classes</Link>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Sidebar activePage="classes" />
-      
-      {/* ── AI FORM MODAL ── */}
-      <AIFormModal 
-        isOpen={showForm} 
-        onClose={() => setShowForm(false)} 
-        type={selectedType} 
-        classInfo={classInfo}
+
+      <AIFormModal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        type={selectedType}
+        classInfo={classMeta}
         onGenerate={handleGenerate}
       />
 
-      {/* ── AI PROGRESS MODAL ── */}
-      <AIModal 
-        isOpen={showProgress} 
-        onClose={() => setShowProgress(false)} 
-        type={selectedType} 
-        book={selectedBook}
-        chapter={selectedChapter}
-        subject={classInfo.name}
-      />
+      {/* Toast Notification */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 40, right: 40, zIndex: 9999, background: "#ef4444", color: "white", padding: "16px 24px", borderRadius: 16, fontWeight: 750, fontSize: 14, boxShadow: "0 10px 40px -10px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 12 }}>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="3"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+          {toast}
+          <button onClick={() => setToast("")} style={{ marginLeft: 10, background: "none", border: "none", color: "white", cursor: "pointer", fontWeight: 800 }}>✕</button>
+        </div>
+      )}
 
-      {/* ── ADD/EDIT TEST MODAL ────────────────────────── */}
       {showAddTestModal && (
         <div className="fixed inset-0 z-[1400] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddTestModal(false)} />
           <div className="relative w-full max-w-[400px] bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="text-lg font-bold text-slate-800">{editingTestId ? 'Update Test' : 'Schedule New Test'}</h3>
+              <h3 className="text-lg font-bold text-slate-800">Schedule New Test</h3>
               <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-lg transition-all" onClick={() => setShowAddTestModal(false)}>
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -469,23 +481,23 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[13px] font-bold text-slate-500 uppercase tracking-wide">Topic Name</label>
-                <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400" placeholder="e.g. Geometry Quiz" value={testForm.topic} onChange={e => setTestForm({...testForm, topic: e.target.value})} />
+                <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400" placeholder="e.g. Geometry Quiz" value={testForm.topic} onChange={e => setTestForm({ ...testForm, topic: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[13px] font-bold text-slate-500 uppercase tracking-wide">Date</label>
-                  <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={testForm.date} onChange={e => setTestForm({...testForm, date: e.target.value})} />
+                  <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={testForm.date} onChange={e => setTestForm({ ...testForm, date: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[13px] font-bold text-slate-500 uppercase tracking-wide">Time</label>
-                  <input type="time" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={testForm.time} onChange={e => setTestForm({...testForm, time: e.target.value})} />
+                  <input type="time" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" value={testForm.time} onChange={e => setTestForm({ ...testForm, time: e.target.value })} />
                 </div>
               </div>
             </div>
             <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
               <button className="flex-1 py-2.5 text-[14px] font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-all" onClick={() => setShowAddTestModal(false)}>Cancel</button>
-              <button className="flex-1 py-2.5 text-[14px] font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all shadow-md shadow-indigo-100" onClick={handleAddTest} disabled={!testForm.topic || !testForm.date}>
-                {editingTestId ? 'Update' : 'Schedule'}
+              <button disabled={isScheduling || !testForm.topic || !testForm.date} className="flex-1 py-2.5 text-[14px] font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md" onClick={handleAddTest}>
+                {isScheduling ? 'Scheduling...' : 'Schedule'}
               </button>
             </div>
           </div>
@@ -493,66 +505,61 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       <main className="main">
-        {/* WRAPPER FOR PADDING AND SPACING */}
         <div className="p-4 md:p-6 space-y-8 max-w-[1400px] mx-auto">
-          
+
           <div className="space-y-5">
-            <SubjectHeader className={classInfo.name} />
-            <AIActionButtons onAction={handleActionClick} />
+            <SubjectHeader className={classMeta.name} />
+            <AIActionButtons onAction={(type) => { setSelectedType(type); setShowForm(true); }} />
           </div>
 
-          {/* Top Row: Schedule & Insights */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6">
-            {/* Schedule Card */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                 </div>
-                <h3 className="text-[17px] font-bold text-slate-800">Class Schedule</h3>
+                <h3 className="text-[17px] font-bold text-slate-800">Class Details</h3>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {classInfo.schedule.map((item: any, idx: number) => (
-                  <div key={idx} className="flex flex-col gap-0.5 p-4 bg-slate-50/50 rounded-xl border-l-4 border-indigo-500">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.day}</span>
-                    <span className="text-[15px] font-bold text-slate-700">{item.time}</span>
-                  </div>
-                ))}
+              <div className="space-y-4">
+                <div className="flex justify-between p-3 bg-slate-50 rounded-xl">
+                  <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Grade</span>
+                  <span className="text-slate-800 font-bold">{classMeta.grade}</span>
+                </div>
+                <div className="flex justify-between p-3 bg-slate-50 rounded-xl">
+                  <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Section</span>
+                  <span className="text-slate-800 font-bold">{classMeta.section}</span>
+                </div>
+                <div className="flex justify-between p-3 bg-slate-50 rounded-xl">
+                  <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Enrollment</span>
+                  <span className="text-slate-800 font-bold">{classMeta.students} Students</span>
+                </div>
               </div>
             </div>
 
-            {/* Quick Stats Card */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                  </svg>
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                 </div>
                 <h3 className="text-[17px] font-bold text-slate-800">Class Insights</h3>
               </div>
               <div className="grid grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Enrollment</div>
-                  <div className="text-2xl font-black text-indigo-600">{classInfo.students}</div>
-                </div>
-                <div className="text-center">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Avg Score</div>
-                  <div className="text-2xl font-black text-orange-500">{classInfo.avgScore}</div>
+                  <div className="text-2xl font-black text-orange-500">{students.length > 0 ? (students.reduce((a, b) => a + b.grade, 0) / students.length).toFixed(1) : "--"}%</div>
                 </div>
                 <div className="text-center">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Progress</div>
-                  <div className="text-2xl font-black text-emerald-600">{classInfo.progress}%</div>
+                  <div className="text-2xl font-black text-emerald-600">{progressPercentage}%</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Outstanding</div>
+                  <div className="text-2xl font-black text-indigo-600">{students.filter(s => s.grade >= 90).length}</div>
                 </div>
               </div>
               <div className="mt-8">
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${classInfo.progress}%` }}></div>
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
                 </div>
               </div>
             </div>
@@ -569,15 +576,19 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
               <h2 className="text-[18px] font-bold text-slate-800">Published Content</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPublishedContent.length > 0 ? filteredPublishedContent.map(item => (
-                <PublishedContentCard 
-                  key={item.id} 
+              {publishedContent.length > 0 ? publishedContent.map(item => (
+                <PublishedContentCard
+                  key={item.class_chapter_id}
                   item={{
                     ...item,
-                    type: item.contentType,
-                    date: item.publishDate
-                  }} 
-                  subject={classInfo.name} 
+                    type: item.type,
+                    book: item.book_name,
+                    chapter: item.chapter_title,
+                    date: item.date
+                  }}
+                  subject={classMeta.name}
+                  classId={classId}
+                  grade={classMeta.grade_level}
                 />
               )) : (
                 <div className="col-span-full py-12 bg-white border border-slate-100 border-dashed rounded-3xl flex flex-col items-center text-center">
@@ -587,15 +598,13 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                     </svg>
                   </div>
                   <h3 className="font-bold text-slate-700">No Published Content</h3>
-                  <p className="text-sm text-slate-400 max-w-[280px]">You haven't generated any AI materials for this subject yet.</p>
+                  <p className="text-sm text-slate-400 max-w-[280px]">Begin generating AI materials to see them here.</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Curriculum & Tests Row */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6">
-            {/* Curriculum Progress */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -609,28 +618,28 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
               <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl mb-6">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Current Focus</div>
                 <div className="flex justify-between items-center gap-4">
-                  <div className="text-[16px] font-extrabold text-slate-800 truncate">{currentChapter}</div>
-                  {currentChapter !== "Course Completed" && (
-                    <button onClick={handleMarkChapterCompleted} className="shrink-0 px-4 py-1.5 bg-indigo-600 text-white text-[12px] font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors">
+                  <div className="text-[16px] font-extrabold text-slate-800 truncate">{currentChapter.name}</div>
+                  {currentChapter.id && (
+                    <button onClick={() => handleToggleChapter(currentChapter.id, true)} className="shrink-0 px-4 py-1.5 bg-indigo-600 text-white text-[12px] font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors">
                       Mark Done
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-2 mb-8">
+              <div className="space-y-2 mb-8 overflow-y-auto max-h-[300px] pr-1">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Recently Completed</div>
-                {completedChapters.slice(-3).reverse().map((chapter, idx) => (
-                  <div key={idx} className="flex justify-between items-center px-4 py-3 bg-white border border-slate-100 rounded-xl">
+                {curriculum.filter(c => c.is_completed).slice().reverse().map((chapter, idx) => (
+                  <div key={chapter.id} className="flex justify-between items-center px-4 py-3 bg-white border border-slate-100 rounded-xl">
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3.5">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </div>
-                      <span className="text-[13px] font-semibold text-slate-600">{chapter}</span>
+                      <span className="text-[13px] font-semibold text-slate-600">{chapter.name}</span>
                     </div>
-                    <button onClick={() => handleUndoChapter(chapter)} className="p-1 px-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                    <button onClick={() => handleToggleChapter(chapter.id, false)} className="p-1 px-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
                       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -648,7 +657,6 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            {/* Class Tests */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
@@ -659,8 +667,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <h3 className="text-[17px] font-bold text-slate-800">Upcoming Tests</h3>
                 </div>
-                <button 
-                  onClick={() => { setEditingTestId(null); setTestForm({ topic: "", date: "", time: "" }); setShowAddTestModal(true); }}
+                <button
+                  onClick={() => { setTestForm({ topic: "", date: "", time: "" }); setShowAddTestModal(true); }}
                   className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 text-[13px] font-bold rounded-xl hover:bg-slate-100 transition-colors"
                 >
                   + New Test
@@ -676,14 +684,11 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                       <div className="space-y-0.5">
                         <div className="font-bold text-slate-700 text-[14px]">{test.topic}</div>
                         <div className="text-[12px] font-semibold text-slate-400 inline-flex items-center gap-1.5">
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                           {test.date} at {test.time}
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => handleEditTest(test)} className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all">
-                          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
                         <button onClick={() => handleDeleteTest(test.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all">
                           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
@@ -695,18 +700,17 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Student List Grid */}
           <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
             <div className="p-6 md:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/30">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Enrolled Students</h2>
-                <p className="text-[14px] text-slate-500 font-medium">Monitoring attendance and grades for {classInfo.name}</p>
+                <p className="text-[14px] text-slate-500 font-medium">Monitoring attendance and grades for {classMeta.name}</p>
               </div>
               <div className="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-full font-bold text-[14px] shadow-sm shadow-indigo-50">
-                {classStudents.length} Students Active
+                {students.length} Students Active
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <div className="min-w-[800px]">
                 <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-8 py-5 bg-slate-50/50 border-b border-slate-100">
@@ -717,7 +721,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 <div className="divide-y divide-slate-50">
-                  {classStudents.map((student: any) => (
+                  {students.map((student) => (
                     <div key={student.id} className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-8 py-5 items-center hover:bg-slate-50/30 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ background: student.color }}>
@@ -725,34 +729,33 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                         <div className="min-w-0">
                           <div className="font-extrabold text-slate-800 truncate">{student.name}</div>
-                          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-tight">ID: #{student.id}</div>
+                          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-tight">ID: #{student.id.substring(0, 8)}</div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-4 pr-10">
                         <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-1000" style={{
                             width: `${student.attendance}%`,
-                            background: student.attendance >= 90 ? "#10b981" : student.attendance >= 75 ? "#3b82f6" : "#f59e0b"
+                            background: student.attendance >= 90 ? "#10b981" : "#3b82f6"
                           }}></div>
                         </div>
                         <span className="text-[14px] font-black text-slate-700 w-10 text-right">{student.attendance}%</span>
                       </div>
 
                       <div className="text-[16px] font-black text-indigo-600 px-2">{student.grade}%</div>
-                      
+
                       <div>
-                        <span className={`inline-flex px-3.5 py-1.5 rounded-xl text-[12px] font-black tracking-wide uppercase ${
-                          student.status === 'excellent' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
-                          'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                        }`}>
+                        <span className={`inline-flex px-3.5 py-1.5 rounded-xl text-[12px] font-black tracking-wide uppercase ${student.status === 'excellent' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                            'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                          }`}>
                           {student.status}
                         </span>
                       </div>
                     </div>
                   ))}
 
-                  {classStudents.length === 0 && (
+                  {students.length === 0 && (
                     <div className="py-24 flex flex-col items-center text-center px-6">
                       <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-3xl flex items-center justify-center mb-6">
                         <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
@@ -760,7 +763,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
                         </svg>
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 mb-2">No Students Enrolled</h3>
-                      <p className="text-slate-400 max-w-[320px] mx-auto text-sm leading-relaxed">There currently aren't any students assigned to this class. Add students to begin tracking performance.</p>
+                      <p className="text-slate-400 max-w-[320px] mx-auto text-sm leading-relaxed">There currently aren't any students assigned to this class.</p>
                     </div>
                   )}
                 </div>
