@@ -1,4 +1,4 @@
-export const API_BASE = "http://127.0.0.1:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:8000";
 
 // ── Token helpers ──────────────────────────────────────────────
 export function getAccessToken(): string | null {
@@ -70,7 +70,16 @@ export async function apiFetch(
     fetchOptions.body = JSON.stringify(options.body);
   }
 
-  let res = await fetch(`${API_BASE}${path}`, fetchOptions);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, fetchOptions);
+  } catch {
+    // Backend unreachable (server offline, wrong port, CORS, etc.)
+    return new Response(JSON.stringify({ detail: "Cannot connect to server." }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   // If 401, attempt a single refresh cycle
   if (res.status === 401) {
@@ -112,11 +121,19 @@ export async function apiFormData(
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  let res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers,
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+  } catch {
+    return new Response(JSON.stringify({ detail: "Cannot connect to server." }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   if (res.status === 401) {
     if (!isRefreshing) {

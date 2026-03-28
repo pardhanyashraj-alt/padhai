@@ -93,9 +93,10 @@ export default function ClassesPage() {
   // Fetch books when AI modal opens
   useEffect(() => {
     if (aiModal) {
+      const modal = aiModal; // narrow: guaranteed non-null inside this block
       async function fetchBooks() {
         try {
-          const res = await apiFetch(`/teacher/book-names?grade_level=${aiModal.grade_level}&subject=${encodeURIComponent(aiModal.subject)}`);
+          const res = await apiFetch(`/teacher/book-names?grade_level=${modal.grade_level}&subject=${encodeURIComponent(modal.subject)}`);
           if (res.ok) {
             const data = await res.json();
             setAvailableBooks(data);
