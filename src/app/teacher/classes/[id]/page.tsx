@@ -149,16 +149,22 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
   const [book, setBook] = useState("");
   const [chapter, setChapter] = useState("");
   const [error, setError] = useState("");
+  const [allBooks, setAllBooks] = useState<any[]>([]);
   const [availableBooks, setAvailableBooks] = useState<string[]>([]);
+  const [availableChapters, setAvailableChapters] = useState<any[]>([]);
 
   useEffect(() => {
     if (isOpen && classInfo) {
       async function fetchBooks() {
         try {
-          const res = await apiFetch(`/teacher/book-names?grade_level=${classInfo.grade_level}&subject=${encodeURIComponent(classInfo.name)}`);
+          const res = await apiFetch(`/teacher/classes/${classInfo.id}/books`);
           if (res.ok) {
             const data = await res.json();
-            setAvailableBooks(data);
+            const booksArray = data.books || [];
+            setAllBooks(booksArray);
+            
+            const uniqueNames = Array.from(new Set(booksArray.map((b: any) => b.book_name))) as string[];
+            setAvailableBooks(uniqueNames);
           }
         } catch (err) {
           console.error("Failed to fetch books:", err);
@@ -167,6 +173,18 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
       fetchBooks();
     }
   }, [isOpen, classInfo]);
+
+  useEffect(() => {
+    if (book) {
+      const chapters = allBooks
+        .filter(b => b.book_name === book)
+        .sort((a, b) => a.chapter_number - b.chapter_number);
+      setAvailableChapters(chapters);
+      setChapter("");
+    } else {
+      setAvailableChapters([]);
+    }
+  }, [book, allBooks]);
 
   if (!isOpen) return null;
 
@@ -228,12 +246,17 @@ function AIFormModal({ isOpen, onClose, type, classInfo, onGenerate }: {
           <div className="space-y-1.5">
             <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest pl-1">Chapter Number</label>
             <select
-              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700"
+              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer font-bold text-slate-700 disabled:opacity-50"
               value={chapter}
               onChange={e => { setChapter(e.target.value); setError(""); }}
+              disabled={!book}
             >
-              <option value="">Select Chapter</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(c => <option key={c} value={c}>Chapter {c}</option>)}
+              <option value="">{book ? "Select Chapter" : "Select a book first"}</option>
+              {availableChapters.map(c => (
+                <option key={c.book_id} value={`Chapter ${c.chapter_number}: ${c.chapter_title}`}>
+                  Chapter {c.chapter_number}: {c.chapter_title}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -290,7 +313,8 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       if (!classId || classId === '[id]') return;
       try {
         const metaRes = await apiFetch(`/teacher/dashboard`);
-        const curriculumRes = await apiFetch(`/teacher/classes/${classId}/chapters`);
+        // Use /books instead of /chapters to avoid backend AttributeError on ClassChapter.chapter_title
+        const curriculumRes = await apiFetch(`/teacher/classes/${classId}/books`);
         const pubSummary = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=summary`);
         const pubQuiz = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=quiz`);
         const pubQA = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=qa_bank`);
@@ -324,13 +348,14 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           status: m.quizScore >= 90 ? "excellent" : "good"
         })));
 
-        // Student data is currently missing from backend, so we skip for now
+        // Use the books endpoint to construct curriculum (only assigned chapters)
         if (curriculumRes.ok) {
           const curData = await curriculumRes.json();
-          setCurriculum((curData.chapters || []).map((c: any) => ({
-            id: c.class_chapter_id,
+          const assignedChapters = (curData.books || []).filter((b: any) => b.is_assigned);
+          setCurriculum(assignedChapters.map((c: any) => ({
+            id: c.book_id, // using book_id since class_chapter_id isn't directly exposed here
             name: c.chapter_title || `Chapter ${c.chapter_number}`,
-            is_completed: c.is_completed || false
+            is_completed: false // We can't know completion from this endpoint, default false
           })));
         }
         // Test data is currently missing from backend
@@ -578,7 +603,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {publishedContent.length > 0 ? publishedContent.map(item => (
                 <PublishedContentCard
-                  key={item.class_chapter_id}
+                  key={`${item.class_chapter_id}-${item.type}`}
                   item={{
                     ...item,
                     type: item.type,

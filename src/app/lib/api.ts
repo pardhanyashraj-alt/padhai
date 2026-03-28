@@ -1,4 +1,4 @@
-export const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://padhai-backend-qbw5.onrender.com";
 
 // ── Token helpers ──────────────────────────────────────────────
 export function getAccessToken(): string | null {

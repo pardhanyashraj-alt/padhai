@@ -73,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        const detail = err?.detail || (res.status === 403 ? "Your account has been deactivated" : "Invalid email or password");
+        const detail = err?.detail || (res.status === 401 ? "Invalid email or password" : 
+                       res.status === 403 ? "Your account has been deactivated" : 
+                       "Login failed. Please try again.");
         return { success: false, error: detail };
       }
 
@@ -82,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       return { success: true };
     } catch {
-      return { success: false, error: "Unable to reach the server. Please try again." };
+      return { success: false, error: "Unable to reach the local server. Please ensure your backend is running." };
     }
   };
 

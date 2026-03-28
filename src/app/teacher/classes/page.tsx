@@ -47,7 +47,9 @@ export default function ClassesPage() {
   const [aiBook, setAIBook] = useState("");
   const [aiChapter, setAIChapter] = useState("");
   const [aiError, setAIError] = useState("");
+  const [allBooks, setAllBooks] = useState<any[]>([]);
   const [availableBooks, setAvailableBooks] = useState<string[]>([]);
+  const [availableChapters, setAvailableChapters] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchClasses() {
@@ -93,13 +95,16 @@ export default function ClassesPage() {
   // Fetch books when AI modal opens
   useEffect(() => {
     if (aiModal) {
-      const modal = aiModal; // narrow: guaranteed non-null inside this block
+      const modal = aiModal;
       async function fetchBooks() {
         try {
-          const res = await apiFetch(`/teacher/book-names?grade_level=${modal.grade_level}&subject=${encodeURIComponent(modal.subject)}`);
+          const res = await apiFetch(`/teacher/classes/${modal.classId}/books`);
           if (res.ok) {
             const data = await res.json();
-            setAvailableBooks(data);
+            const booksArray = data.books || [];
+            setAllBooks(booksArray);
+            const uniqueNames = Array.from(new Set(booksArray.map((b: any) => b.book_name))) as string[];
+            setAvailableBooks(uniqueNames);
           }
         } catch (err) {
           console.error("Failed to fetch books:", err);
@@ -107,9 +112,23 @@ export default function ClassesPage() {
       }
       fetchBooks();
     } else {
+      setAllBooks([]);
       setAvailableBooks([]);
     }
   }, [aiModal]);
+
+  // Update chapters when book changes
+  useEffect(() => {
+    if (aiBook) {
+      const chapters = allBooks
+        .filter(b => b.book_name === aiBook)
+        .sort((a, b) => a.chapter_number - b.chapter_number);
+      setAvailableChapters(chapters);
+      setAIChapter("");
+    } else {
+      setAvailableChapters([]);
+    }
+  }, [aiBook, allBooks]);
 
   const totalStudents = classes.reduce((a, b) => a + b.students, 0);
   const avgProgress = classes.length > 0 
@@ -197,9 +216,13 @@ export default function ClassesPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Chapter Number</label>
-                    <select className="form-input" value={aiChapter} onChange={e => { setAIChapter(e.target.value); setAIError(""); }}>
-                      <option value="">Select Chapter</option>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(c => <option key={c} value={c}>Chapter {c}</option>)}
+                    <select className="form-input" value={aiChapter} onChange={e => { setAIChapter(e.target.value); setAIError(""); }} disabled={!aiBook}>
+                      <option value="">{aiBook ? "Select Chapter" : "Select a book first"}</option>
+                      {availableChapters.map(c => (
+                        <option key={c.book_id} value={`Chapter ${c.chapter_number}: ${c.chapter_title}`}>
+                          Chapter {c.chapter_number}: {c.chapter_title}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
