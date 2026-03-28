@@ -49,10 +49,6 @@ function LoginContent() {
     const result = await login(email, password);
 
     if (result.success) {
-      if (result.needsPasswordChange) {
-        // TODO: Redirect to password change page
-        console.log('Password change required');
-      }
       // Redirect will happen via useEffect when user state updates
     } else {
       setError(result.error || 'Login failed');

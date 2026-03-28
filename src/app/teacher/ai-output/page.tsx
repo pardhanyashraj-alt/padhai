@@ -55,7 +55,7 @@ function AIOutputContent() {
             }
           });
         } else {
-          // Fresh generation using the specific GET route, sending parameters as JSON body
+          // Fresh generation
           const payload = {
             book_name: book,
             class_grade: String(grade),
@@ -63,10 +63,10 @@ function AIOutputContent() {
             chapter_number: String(chapter_number),
             content_type: backend_type
           };
-          console.log("SENDING GET /teacher/get-content WITH BODY:", payload);
+          console.log("SENDING POST /teacher/get-content WITH BODY:", payload);
 
           res = await apiFetch(`/teacher/get-content`, {
-            method: "POST", // Note: Sending a body with GET using standard fetch may cause TypeError in browsers.
+            method: "POST",
             body: payload
           });
 
@@ -76,9 +76,9 @@ function AIOutputContent() {
         if (res.ok) {
           const data = await res.json();
           console.log("RECEIVED RESPONSE DATA:", data);
-          // Backend might return editable_content from /edit, or content/[type] from /get-content
-          const rawContent = data.editable_content || data.content || data[backend_type] || data.summary || data.quiz || data.qa_bank || "";
-          setContent(typeof rawContent === "object" ? JSON.stringify(rawContent, null, 2) : rawContent);
+          console.log("RECEIVED RESPONSE DATA KEYS:", Object.keys(data));
+          // Always store the FULL response as a JSON string so the renderer can intelligently pick sections
+          setContent(JSON.stringify(data, null, 2));
           if (data.is_published) setPublished(true);
         } else {
           setToast("Error fetching content. Please try again.");
@@ -138,7 +138,7 @@ function AIOutputContent() {
           chapter_number: chapter_number,
           content_type: backend_type,
           content: content,
-          is_save_only: true // We can add this flag to service to just update and not return
+          is_save_only: true
         }
       });
       if (res.ok) {
@@ -154,6 +154,227 @@ function AIOutputContent() {
       setTimeout(() => setToast(""), 3000);
     }
   };
+
+  // ─── DEEP SEARCH HELPERS ─────────────────────────────────────
+  // Recursively find an array at key 'exercises' at any depth in an object
+  function findExercises(obj: any): any[] | null {
+    if (!obj || typeof obj !== 'object') return null;
+    if (Array.isArray(obj)) return null;
+    if (obj.exercises) {
+      let ex = obj.exercises;
+      if (typeof ex === 'string') { try { ex = JSON.parse(ex); } catch(e) {} }
+      if (Array.isArray(ex)) return ex;
+    }
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (typeof val === 'object' && val !== null) {
+        const found = findExercises(val);
+        if (found) return found;
+      }
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          const found = findExercises(parsed);
+          if (found) return found;
+        } catch(e) {}
+      }
+    }
+    return null;
+  }
+
+  // Find summary object at any depth
+  function findSummary(obj: any): Record<string, string> | null {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    if (obj.summary && typeof obj.summary === 'object' && !Array.isArray(obj.summary)) return obj.summary;
+    for (const key of Object.keys(obj)) {
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        const found = findSummary(obj[key]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  // Find quiz questions at any depth
+  function findQuizQuestions(obj: any): any[] | null {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    if (obj.quiz?.questions && Array.isArray(obj.quiz.questions)) return obj.quiz.questions;
+    for (const key of Object.keys(obj)) {
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        const found = findQuizQuestions(obj[key]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  // Find key_points at any depth
+  function findKeyPoints(obj: any): string[] | null {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    if (obj.key_points && Array.isArray(obj.key_points)) return obj.key_points;
+    for (const key of Object.keys(obj)) {
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        const found = findKeyPoints(obj[key]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  // ─── RENDER CONTENT ──────────────────────────────────────────
+  function renderViewContent() {
+    if (!content) return <div className="text-slate-500 italic">No content generated yet.</div>;
+
+    let data: any;
+    try {
+      data = JSON.parse(content);
+      if (!data || typeof data !== 'object') throw new Error("Not object");
+    } catch (e) {
+      // Not valid JSON, render as plain text
+      return (
+        <div className="whitespace-pre-wrap text-[16px] leading-relaxed text-slate-700 font-medium font-serif bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          {content}
+        </div>
+      );
+    }
+
+    const heading = data.heading || data.chapter_title || null;
+    const summaryObj = findSummary(data);
+    const keyPoints = findKeyPoints(data);
+    const quizQuestions = findQuizQuestions(data);
+    const exercisesArray = findExercises(data);
+
+    console.log("RENDERER DEBUG:", { heading, hasSummary: !!summaryObj, hasKeyPoints: !!keyPoints, hasQuiz: !!quizQuestions, hasExercises: !!exercisesArray, exercisesLength: exercisesArray?.length });
+
+    const hasAnything = summaryObj || keyPoints || quizQuestions || exercisesArray;
+
+    return (
+      <div className="space-y-10">
+        {heading && <h2 className="text-2xl font-black text-indigo-900 mb-2 border-b border-slate-100 pb-4">{heading}</h2>}
+
+        {/* ── Summary ── */}
+        {summaryObj && (
+          <div className="space-y-6">
+            {Object.entries(summaryObj).map(([title, desc], i) => (
+              <div key={i} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <h3 className="text-[17px] font-bold text-slate-800 mb-3">{title}</h3>
+                <p className="text-[15px] leading-relaxed text-slate-600">{desc as string}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Key Points ── */}
+        {keyPoints && (
+          <div className="bg-emerald-50/40 p-6 rounded-2xl border border-emerald-100">
+            <h3 className="text-[16px] font-black text-emerald-800 mb-5 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center text-xs">✨</span>
+              Key Points
+            </h3>
+            <ul className="space-y-3">
+              {keyPoints.map((point, i) => (
+                <li key={i} className="flex gap-3 text-[15px] text-emerald-900 leading-relaxed font-medium">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ── Quiz ── */}
+        {quizQuestions && (
+          <div className="space-y-6">
+            {quizQuestions.map((q: any, i: number) => (
+              <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
+                <div className="flex gap-5">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center shrink-0">{i + 1}</div>
+                  <div className="flex-1 space-y-5 mt-1">
+                    <h3 className="text-[16px] font-bold text-slate-800 leading-relaxed">{q.question_text}</h3>
+                    {q.options && typeof q.options === 'object' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Object.entries(q.options).map(([key, val]) => {
+                          const isCorrect = key === q.correct_answer;
+                          return (
+                            <div key={key} className={`p-4 rounded-xl border text-[14px] font-medium ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
+                              <span className={`font-black mr-2 ${isCorrect ? "text-emerald-600" : "text-slate-400"}`}>{key}.</span>
+                              {val as string}
+                              {isCorrect && <span className="float-right text-emerald-500">✓</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {q.explanation && (
+                      <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-[14px] text-indigo-900 leading-relaxed">
+                        <span className="font-black block mb-1">Explanation:</span>
+                        {q.explanation}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── QA Bank / Exercises ── */}
+        {exercisesArray && (
+          <div className="space-y-10">
+            {exercisesArray.map((section: any, idx: number) => (
+              <div key={idx} className="bg-white border text-slate-800 border-slate-200 shadow-sm rounded-3xl overflow-hidden">
+                {section.section_title && (
+                  <div className="bg-slate-50 border-b border-slate-100 px-8 py-5">
+                    <h3 className="text-[17px] font-black tracking-tight text-indigo-900">{section.section_title}</h3>
+                  </div>
+                )}
+                {section.questions && Array.isArray(section.questions) && (
+                  <div className="p-8 space-y-8">
+                    {section.questions.map((q: any, qi: number) => (
+                      <div key={qi} className="group relative">
+                        <div className="flex gap-4 items-start">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-sm border border-slate-200 text-sm">
+                            {q.question_number || (qi + 1)}
+                          </div>
+                          <div className="flex-1 space-y-4">
+                            <h4 className="text-[16px] font-bold text-slate-800 leading-relaxed">{q.question_text || "Untitled Question"}</h4>
+                            <div className="text-[15px] leading-relaxed text-slate-600 pl-5 py-2 border-l-2 border-slate-200">
+                              <span className="font-black text-slate-400 block mb-1.5 text-[11px] uppercase tracking-widest">Answer</span>
+                              {q.answer || "No answer provided"}
+                            </div>
+                            {q.type && (
+                              <div className="mt-3">
+                                <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm">
+                                  {String(q.type).replace(/_/g, " ")}
+                                </span>
+                                {Boolean(q.based_on_image) && (
+                                  <span className="ml-2 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm">
+                                    📷 Image Based
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Fallback: raw JSON if nothing matched ── */}
+        {!hasAnything && (
+          <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-slate-700 font-mono bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            {content}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -206,9 +427,7 @@ function AIOutputContent() {
         <div className="relative flex-1">
           {mode === 'view' ? (
             <div className="prose prose-slate max-w-none">
-              <div className="whitespace-pre-wrap text-[16px] leading-relaxed text-slate-700 font-medium font-serif">
-                {content || "No content generated yet."}
-              </div>
+              {renderViewContent()}
             </div>
           ) : (
             <div className="flex flex-col h-full space-y-6">
