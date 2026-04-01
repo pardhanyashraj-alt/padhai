@@ -1,24 +1,55 @@
 export const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://padhai-backend-qbw5.onrender.com";
 
+export type UserRole = "student" | "teacher" | "admin";
+const ALL_ROLES: UserRole[] = ["student", "teacher", "admin"];
+
 // ── Token helpers ──────────────────────────────────────────────
-export function getAccessToken(): string | null {
+export function getAccessToken(role?: UserRole): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
+  if (role) return localStorage.getItem(`${role}_access_token`);
+  // No role provided — scan all roles and return the first match
+  for (const r of ALL_ROLES) {
+    const token = localStorage.getItem(`${r}_access_token`);
+    if (token) return token;
+  }
+  return null;
 }
 
-export function getRefreshToken(): string | null {
+export function getRefreshToken(role?: UserRole): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("refresh_token");
+  if (role) return localStorage.getItem(`${role}_refresh_token`);
+  for (const r of ALL_ROLES) {
+    const token = localStorage.getItem(`${r}_refresh_token`);
+    if (token) return token;
+  }
+  return null;
 }
 
-export function setTokens(access: string, refresh: string) {
-  localStorage.setItem("access_token", access);
-  localStorage.setItem("refresh_token", refresh);
+/** Detects which role's tokens are currently stored. */
+export function getStoredRole(): UserRole | null {
+  if (typeof window === "undefined") return null;
+  for (const r of ALL_ROLES) {
+    if (localStorage.getItem(`${r}_access_token`)) return r;
+  }
+  return null;
 }
 
-export function clearTokens() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+export function setTokens(role: UserRole, access: string, refresh: string) {
+  localStorage.setItem(`${role}_access_token`, access);
+  localStorage.setItem(`${role}_refresh_token`, refresh);
+}
+
+/** Clears tokens for a specific role, or all roles if none specified. */
+export function clearTokens(role?: UserRole) {
+  if (role) {
+    localStorage.removeItem(`${role}_access_token`);
+    localStorage.removeItem(`${role}_refresh_token`);
+    return;
+  }
+  for (const r of ALL_ROLES) {
+    localStorage.removeItem(`${r}_access_token`);
+    localStorage.removeItem(`${r}_refresh_token`);
+  }
 }
 
 // ── Core fetch wrapper (JSON) ──────────────────────────────────
@@ -26,8 +57,9 @@ let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
 async function tryRefresh(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+  const role = getStoredRole();
+  const refreshToken = role ? getRefreshToken(role) : null;
+  if (!refreshToken || !role) return null;
 
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: "POST",
@@ -35,13 +67,13 @@ async function tryRefresh(): Promise<string | null> {
   });
 
   if (!res.ok) {
-    clearTokens();
+    clearTokens(role);
     return null;
   }
 
   const data = await res.json();
-  const newAccess = data.access_token as string;
-  localStorage.setItem("access_token", newAccess);
+  const newAccess = data[`${role}_access_token`] as string;   // ← role-prefixed key
+  localStorage.setItem(`${role}_access_token`, newAccess);
   return newAccess;
 }
 
@@ -51,9 +83,10 @@ async function tryRefresh(): Promise<string | null> {
  */
 export async function apiFetch(
   path: string,
-  options: Omit<RequestInit, 'body'> & { body?: any } = {}
+  options: Omit<RequestInit, "body"> & { body?: any } = {}
 ): Promise<Response> {
-  const accessToken = getAccessToken();
+  const role = getStoredRole();
+  const accessToken = role ? getAccessToken(role) : null;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -61,12 +94,14 @@ export async function apiFetch(
   };
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  const fetchOptions: RequestInit = {
-    ...options,
-    headers,
-  };
+  const fetchOptions: RequestInit = { ...options, headers };
 
-  if (options.body && typeof options.body === "object" && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
+  if (
+    options.body &&
+    typeof options.body === "object" &&
+    !(options.body instanceof FormData) &&
+    !(options.body instanceof Blob)
+  ) {
     fetchOptions.body = JSON.stringify(options.body);
   }
 
@@ -74,14 +109,12 @@ export async function apiFetch(
   try {
     res = await fetch(`${API_BASE}${path}`, fetchOptions);
   } catch {
-    // Backend unreachable (server offline, wrong port, CORS, etc.)
     return new Response(JSON.stringify({ detail: "Cannot connect to server." }), {
       status: 503,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // If 401, attempt a single refresh cycle
   if (res.status === 401) {
     if (!isRefreshing) {
       isRefreshing = true;
@@ -97,7 +130,6 @@ export async function apiFetch(
       headers["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     } else {
-      // Refresh failed — force re-login
       if (typeof window !== "undefined") {
         clearTokens();
         window.location.href = "/login";
@@ -116,7 +148,8 @@ export async function apiFormData(
   path: string,
   formData: FormData
 ): Promise<Response> {
-  const accessToken = getAccessToken();
+  const role = getStoredRole();
+  const accessToken = role ? getAccessToken(role) : null;
 
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;

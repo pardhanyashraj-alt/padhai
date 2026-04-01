@@ -207,8 +207,73 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px;
+    padding: 14px 12px;
     border-top: 1px solid var(--border);
+    position: relative;
+}
+
+.sidebar-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.sidebar-user-role {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    text-transform: capitalize;
+}
+
+.sidebar-user-email {
+    font-size: 10px;
+    color: var(--text-meta);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    margin-top: 1px;
+}
+
+.sidebar-logout-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-meta);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-logout-btn:hover {
+    background: #FEE2E2;
+    border-color: #FECACA;
+    color: #DC2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+}
+
+html.dark .sidebar-logout-btn:hover {
+    background: rgba(220, 38, 38, 0.15);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #FCA5A5;
 }
 
 .avatar {

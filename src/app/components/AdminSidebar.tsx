@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
 
 interface AdminSidebarProps {
   activePage:
@@ -21,6 +22,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ activePage }: AdminSidebarProps) {
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -200,11 +202,23 @@ export default function AdminSidebar({ activePage }: AdminSidebarProps) {
         </div>
 
         <div className="sidebar-user">
-          <div className="avatar" style={{ background: '#7C3AED' }}>AD</div>
-          <div>
-            <div style={{ fontSize: "13px", fontWeight: 600 }}>Admin User</div>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>School Administrator</div>
+          <div className="avatar" style={{ background: '#7C3AED' }}>
+            {user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : 'A'}
           </div>
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-name">
+              {user ? `${user.first_name} ${user.last_name}` : 'Admin'}
+            </div>
+            <div className="sidebar-user-role">Administrator</div>
+            {user?.email && <div className="sidebar-user-email">{user.email}</div>}
+          </div>
+          <button className="sidebar-logout-btn" onClick={logout} title="Logout">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
         </div>
       </nav>
 

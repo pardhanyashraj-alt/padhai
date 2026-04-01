@@ -1,9 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiFetch, setTokens, clearTokens, getAccessToken, API_BASE } from "../lib/api";
+import { apiFetch, setTokens, clearTokens, getAccessToken, getStoredRole, API_BASE, UserRole } from "../lib/api";
 
-// ── Types ──────────────────────────────────────────────────────
 export interface AuthUser {
   user_id: string;
   email: string;
@@ -28,14 +27,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ── Provider ───────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Verify session on mount
   const loadUser = useCallback(async () => {
-    const token = getAccessToken();
+    const token = getAccessToken(); // scans all roles
     if (!token) {
       setLoading(false);
       return;
@@ -44,8 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await apiFetch("/auth/me");
       if (res.ok) {
-        const data = await res.json();
-        setUser(data);
+        setUser(await res.json());
       } else {
         clearTokens();
         setUser(null);
@@ -62,7 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
   }, [loadUser]);
 
-  // Login handler
   const login = async (email: string, password: string) => {
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
@@ -73,29 +68,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        const detail = err?.detail || (res.status === 401 ? "Invalid email or password" : 
-                       res.status === 403 ? "Your account has been deactivated" : 
-                       "Login failed. Please try again.");
+        const detail =
+          err?.detail ||
+          (res.status === 401 ? "Invalid email or password" :
+            res.status === 403 ? "Your account has been deactivated" :
+              "Login failed. Please try again.");
         return { success: false, error: detail };
       }
 
       const data = await res.json();
-      setTokens(data.access_token, data.refresh_token);
+      const role = data.user?.role as UserRole;                        // e.g. "teacher"
+      const accessToken = data[`${role}_access_token`] as string;      // "teacher_access_token"
+      const refreshToken = data[`${role}_refresh_token`] as string;    // "teacher_refresh_token"
+
+      setTokens(role, accessToken, refreshToken);
       setUser(data.user);
       return { success: true };
     } catch {
-      return { success: false, error: "Unable to reach the local server. Please ensure your backend is running." };
+      return {
+        success: false,
+        error: "Unable to reach the server. Please ensure your backend is running.",
+      };
     }
   };
 
-  // Logout handler
   const logout = () => {
-    clearTokens();
+    const role = user?.role as UserRole | undefined;
+    clearTokens(role);
     setUser(null);
-    window.location.href = "/superadmin/login";
+    window.location.href = "/";
   };
 
-  // Refresh user data
   const refreshUser = async () => {
     try {
       const res = await apiFetch("/auth/me");
@@ -110,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Hook ───────────────────────────────────────────────────────
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");

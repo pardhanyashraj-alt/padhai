@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, apiFormData } from "../../lib/api";
 
 // ─── Types matching GET /admin/students response ──────────────────────────────
 
@@ -34,6 +34,30 @@ interface SchoolClass {
   class_id: string;
   grade_level: number;
   section: string;
+}
+
+// ─── Bulk enroll response matching POST /admin/students/bulk-enroll ───────────
+
+interface BulkSkippedRow {
+  row_number: number;
+  email?: string;
+  admission_number?: number;
+  reason: string;
+}
+
+interface BulkFailedRow {
+  row_number: number;
+  reason: string;
+}
+
+interface BulkEnrollResult {
+  status: "success" | "validation_failed";
+  total_rows: number;
+  enrolled_count: number;
+  skipped_count: number;
+  failed_count: number;
+  skipped_rows: BulkSkippedRow[];
+  failed_rows: BulkFailedRow[];
 }
 
 // ─── Register form matching POST /admin/students/register ─────────────────────
@@ -76,6 +100,14 @@ export default function StudentsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Bulk upload modal
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkDragging, setBulkDragging] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkEnrollResult | null>(null);
+  const [bulkTab, setBulkTab] = useState<"failed" | "skipped">("failed");
+
   // ── Fetch ───────────────────────────────────────────────────────────────────
 
   const fetchStudents = async () => {
@@ -98,7 +130,9 @@ export default function StudentsPage() {
 
   // ── Filters ─────────────────────────────────────────────────────────────────
 
-  const uniqueGrades = Array.from(new Set(students.map(s => s.enrollment?.grade_level).filter(Boolean))).sort() as number[];
+  const uniqueGrades = Array.from(
+    new Set(students.map(s => s.enrollment?.grade_level).filter(Boolean))
+  ).sort() as number[];
 
   const filtered = students.filter(s => {
     const name = `${s.first_name} ${s.last_name} ${s.email} ${s.enrollment?.admission_number ?? ""}`.toLowerCase();
@@ -207,6 +241,70 @@ export default function StudentsPage() {
   const closeRegister = () => { setShowRegister(false); setForm({ ...emptyForm }); setFormErrors({}); };
   const toast = (msg: string) => { setSuccessToast(msg); setTimeout(() => setSuccessToast(""), 3500); };
 
+  // ── Bulk Upload ─────────────────────────────────────────────────────────────
+
+  const handleBulkDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setBulkDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".csv"))) {
+      setBulkFile(file);
+    } else {
+      alert("Please upload a .xlsx or .csv file only.");
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) return;
+    setBulkUploading(true);
+    setBulkResults(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", bulkFile);
+      const res = await apiFormData("/admin/students/bulk-enroll", fd);
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Hard HTTP errors (400 bad file type, 401, 403) — detail string
+        alert((data as any).detail || "Bulk upload failed.");
+        return;
+      }
+
+      // Both "success" and "validation_failed" return HTTP 200
+      const result = data as BulkEnrollResult;
+      setBulkResults(result);
+      // Default to showing errors first; fall back to skipped tab
+      setBulkTab(result.failed_count > 0 ? "failed" : "skipped");
+
+      if (result.status === "success") {
+        fetchStudents();
+        if (result.enrolled_count > 0) {
+          toast(`${result.enrolled_count} student${result.enrolled_count > 1 ? "s" : ""} enrolled successfully!`);
+        }
+      }
+    } catch {
+      alert("Server error during bulk upload.");
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const closeBulk = () => {
+    setShowBulk(false);
+    setBulkFile(null);
+    setBulkResults(null);
+    setBulkDragging(false);
+  };
+
+  const downloadTemplate = () => {
+    const link = document.createElement("a");
+    link.href = "/student_bulk_upload_template.xlsx";
+    link.download = "student_bulk_upload_template.xlsx";
+    link.click();
+  };
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
   const fullName = (s: Student) => `${s.first_name} ${s.last_name}`;
   const initials = (s: Student) => `${s.first_name[0]}${s.last_name[0]}`.toUpperCase();
 
@@ -218,20 +316,358 @@ export default function StudentsPage() {
 
       {/* Toast */}
       {successToast && (
-        <div style={{ position: "fixed", bottom: 32, right: 32, zIndex: 9999, background: "#059669", color: "white", padding: "14px 22px", borderRadius: 14, fontWeight: 600, fontSize: 14, boxShadow: "0 8px 30px rgba(5,150,105,0.35)", display: "flex", alignItems: "center", gap: 10 }}>
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+        <div style={{
+          position: "fixed", bottom: 32, right: 32, zIndex: 9999,
+          background: "#059669", color: "white", padding: "14px 22px",
+          borderRadius: 14, fontWeight: 600, fontSize: 14,
+          boxShadow: "0 8px 30px rgba(5,150,105,0.35)",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
           {successToast}
         </div>
       )}
 
-      {/* ── REGISTER MODAL ── */}
+      {/* ── BULK UPLOAD MODAL ─────────────────────────────────────────────────── */}
+      {showBulk && (
+        <div className="modal-overlay" onClick={closeBulk}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: 600, maxHeight: "92vh", overflowY: "auto" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="card-title">Bulk Student Enrollment</div>
+              <button className="icon-btn" onClick={closeBulk}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Template download banner — always visible */}
+              <div style={{
+                padding: "14px 16px", background: "#EFF6FF",
+                border: "1px solid #BFDBFE", borderRadius: 12,
+                display: "flex", gap: 12, alignItems: "flex-start",
+              }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#1D4ED8" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF", marginBottom: 4 }}>
+                    Use the official template
+                  </div>
+                  <div style={{ fontSize: 12, color: "#3B82F6", lineHeight: 1.6, marginBottom: 10 }}>
+                    Upload an <strong>.xlsx</strong> or <strong>.csv</strong> file matching the template structure.
+                    Required columns: <strong>Admission Number, First Name, Date of Birth, Email, Class Grade, Section.</strong>{" "}
+                    Optional: Last Name, Parent Name, Parent Phone.
+                  </div>
+                  <button
+                    onClick={downloadTemplate}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "7px 14px", background: "#1D4ED8", color: "white",
+                      border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    Download Template
+                  </button>
+                </div>
+              </div>
+
+              {/* Before-upload checklist — hide after results shown */}
+              {!bulkResults && (
+                <div style={{
+                  padding: "12px 16px", background: "#FFFBEB",
+                  border: "1px solid #FDE68A", borderRadius: 12,
+                  fontSize: 12, color: "#92400E", lineHeight: 1.7,
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Before uploading</div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <li>Delete the hint row (row 2) from the template before uploading.</li>
+                    <li>Date of Birth must follow <strong>DD-MM-YYYY</strong> format (e.g. 15-03-2009).</li>
+                    <li>Each Grade + Section combination must already exist in the system.</li>
+                    <li>Duplicate emails / admission numbers are safely skipped (not counted as errors).</li>
+                    <li>If any row fails validation, <strong>no students are enrolled</strong> — fix errors and re-upload.</li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Drop zone — hidden once results are shown */}
+              {!bulkResults && (
+                <div
+                  onDragOver={e => { e.preventDefault(); setBulkDragging(true); }}
+                  onDragLeave={() => setBulkDragging(false)}
+                  onDrop={handleBulkDrop}
+                  onClick={() => document.getElementById("bulk-file-input")?.click()}
+                  style={{
+                    border: `2px dashed ${bulkDragging ? "var(--blue)" : bulkFile ? "#10B981" : "#D1D5DB"}`,
+                    borderRadius: 14, padding: "32px 20px", textAlign: "center",
+                    cursor: "pointer",
+                    background: bulkDragging ? "#EFF6FF" : bulkFile ? "#F0FDF4" : "#F9FAFB",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <input
+                    id="bulk-file-input"
+                    type="file"
+                    accept=".xlsx,.csv"
+                    style={{ display: "none" }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) setBulkFile(file);
+                    }}
+                  />
+                  {bulkFile ? (
+                    <>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#059669" }}>{bulkFile.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-meta)", marginTop: 4 }}>
+                        {(bulkFile.size / 1024).toFixed(1)} KB · Click to change
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-main)" }}>
+                        Drag & drop your .xlsx or .csv file here
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-meta)", marginTop: 4 }}>
+                        or click to browse
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Results panel ── */}
+              {bulkResults && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+                  {/* Status banner */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "14px 16px", borderRadius: 12,
+                    background: bulkResults.status === "success" ? "#F0FDF4" : "#FEF2F2",
+                    border: `1px solid ${bulkResults.status === "success" ? "#BBF7D0" : "#FECACA"}`,
+                  }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>
+                      {bulkResults.status === "success" ? "✅" : "❌"}
+                    </span>
+                    <div>
+                      <div style={{
+                        fontWeight: 700, fontSize: 13,
+                        color: bulkResults.status === "success" ? "#059669" : "#DC2626",
+                      }}>
+                        {bulkResults.status === "success"
+                          ? "Enrollment Complete"
+                          : "Validation Failed — No Students Were Enrolled"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-meta)", marginTop: 2 }}>
+                        {bulkResults.status === "validation_failed"
+                          ? "Fix the errors below, then re-upload the corrected file."
+                          : "Credentials have been emailed to each enrolled student."}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4-column summary */}
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
+                    borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)",
+                  }}>
+                    {[
+                      { label: "Total Rows", value: bulkResults.total_rows, color: "var(--blue)" },
+                      { label: "Enrolled", value: bulkResults.enrolled_count, color: "#059669" },
+                      { label: "Skipped", value: bulkResults.skipped_count, color: "#D97706" },
+                      { label: "Failed", value: bulkResults.failed_count, color: bulkResults.failed_count > 0 ? "#DC2626" : "#9CA3AF" },
+                    ].map((s, i) => (
+                      <div key={s.label} style={{
+                        padding: "14px 10px", textAlign: "center", background: "#F8FAFC",
+                        borderRight: i < 3 ? "1px solid var(--border)" : "none",
+                      }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-meta)", fontWeight: 600, marginTop: 2 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tab switcher — only if there's at least one list to show */}
+                  {(bulkResults.failed_count > 0 || bulkResults.skipped_count > 0) && (
+                    <div style={{
+                      display: "flex", borderRadius: 10, overflow: "hidden",
+                      border: "1px solid var(--border)",
+                    }}>
+                      {bulkResults.failed_count > 0 && (
+                        <button
+                          onClick={() => setBulkTab("failed")}
+                          style={{
+                            flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700,
+                            border: "none", cursor: "pointer",
+                            background: bulkTab === "failed" ? "#FEF2F2" : "#F8FAFC",
+                            color: bulkTab === "failed" ? "#DC2626" : "var(--text-meta)",
+                            borderRight: bulkResults.skipped_count > 0 ? "1px solid var(--border)" : "none",
+                            transition: "background 0.15s",
+                          }}
+                        >
+                          ❌ Errors ({bulkResults.failed_count})
+                        </button>
+                      )}
+                      {bulkResults.skipped_count > 0 && (
+                        <button
+                          onClick={() => setBulkTab("skipped")}
+                          style={{
+                            flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700,
+                            border: "none", cursor: "pointer",
+                            background: bulkTab === "skipped" ? "#FFFBEB" : "#F8FAFC",
+                            color: bulkTab === "skipped" ? "#D97706" : "var(--text-meta)",
+                            transition: "background 0.15s",
+                          }}
+                        >
+                          ⚠️ Already Enrolled ({bulkResults.skipped_count})
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Failed rows */}
+                  {bulkTab === "failed" && bulkResults.failed_rows.length > 0 && (
+                    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #FECACA" }}>
+                      <div style={{
+                        padding: "9px 16px", fontSize: 11, fontWeight: 700, color: "#DC2626",
+                        background: "#FEF2F2", textTransform: "uppercase", letterSpacing: "0.05em",
+                      }}>
+                        Fix these rows and re-upload
+                      </div>
+                      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                        {bulkResults.failed_rows.map((f, i) => (
+                          <div key={i} style={{
+                            display: "flex", alignItems: "flex-start", gap: 12,
+                            padding: "10px 16px", borderTop: "1px solid #FEE2E2",
+                            background: i % 2 === 0 ? "#FFF" : "#FFFAFA", fontSize: 12,
+                          }}>
+                            <span style={{
+                              background: "#FEE2E2", color: "#DC2626", fontWeight: 700,
+                              padding: "2px 8px", borderRadius: 5, fontSize: 11, flexShrink: 0, marginTop: 1,
+                            }}>
+                              Row {f.row_number}
+                            </span>
+                            <span style={{ color: "#DC2626", lineHeight: 1.5 }}>{f.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skipped rows */}
+                  {bulkTab === "skipped" && bulkResults.skipped_rows.length > 0 && (
+                    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #FDE68A" }}>
+                      <div style={{
+                        padding: "9px 16px", fontSize: 11, fontWeight: 700, color: "#D97706",
+                        background: "#FFFBEB", textTransform: "uppercase", letterSpacing: "0.05em",
+                      }}>
+                        Already enrolled — safely skipped
+                      </div>
+                      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                        {bulkResults.skipped_rows.map((s, i) => (
+                          <div key={i} style={{
+                            display: "flex", alignItems: "center", gap: 12,
+                            padding: "10px 16px", borderTop: "1px solid #FEF3C7",
+                            background: i % 2 === 0 ? "#FFF" : "#FFFEF5", fontSize: 12,
+                          }}>
+                            <span style={{
+                              background: "#FEF3C7", color: "#D97706", fontWeight: 700,
+                              padding: "2px 8px", borderRadius: 5, fontSize: 11, flexShrink: 0,
+                            }}>
+                              Row {s.row_number}
+                            </span>
+                            <span style={{ fontWeight: 500, flex: 1, color: "var(--text-main)" }}>
+                              {s.email || (s.admission_number ? `Adm. #${s.admission_number}` : "—")}
+                            </span>
+                            <span style={{ color: "#D97706", fontSize: 11 }}>{s.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* All-clear */}
+                  {bulkResults.failed_count === 0 && bulkResults.skipped_count === 0 && (
+                    <div style={{
+                      padding: 20, textAlign: "center", fontSize: 13,
+                      color: "#059669", fontWeight: 600,
+                      background: "#F0FDF4", borderRadius: 10, border: "1px solid #BBF7D0",
+                    }}>
+                      ✅ All {bulkResults.enrolled_count} students enrolled with no issues!
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer">
+              <button className="btn-outline" onClick={closeBulk}>
+                {bulkResults ? "Close" : "Cancel"}
+              </button>
+              {/* Fix & re-upload — only after validation failure */}
+              {bulkResults?.status === "validation_failed" && (
+                <button
+                  className="btn-outline"
+                  style={{ color: "var(--blue)", borderColor: "var(--blue)" }}
+                  onClick={() => { setBulkFile(null); setBulkResults(null); }}
+                >
+                  Fix & Re-upload
+                </button>
+              )}
+              {/* Upload button — only before results */}
+              {!bulkResults && (
+                <button
+                  className="btn-primary"
+                  style={{
+                    background: "var(--blue)",
+                    opacity: !bulkFile || bulkUploading ? 0.6 : 1,
+                    cursor: !bulkFile || bulkUploading ? "not-allowed" : "pointer",
+                  }}
+                  disabled={!bulkFile || bulkUploading}
+                  onClick={handleBulkUpload}
+                >
+                  {bulkUploading ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                      Uploading…
+                    </span>
+                  ) : "Upload & Enroll"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── REGISTER MODAL ────────────────────────────────────────────────────── */}
       {showRegister && (
         <div className="modal-overlay" onClick={closeRegister}>
           <div className="modal-content" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="card-title">Register New Student</div>
               <button className="icon-btn" onClick={closeRegister}>
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="modal-body">
@@ -281,7 +717,6 @@ export default function StudentsPage() {
                     onChange={e => setForm({ ...form, class_grade: e.target.value })}
                     style={{ borderColor: formErrors.class_grade ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {/* Show grades from existing classes, fallback to 1-12 */}
                     {(classes.length > 0
                       ? Array.from(new Set(classes.map(c => c.grade_level))).sort((a, b) => a - b)
                       : Array.from({ length: 12 }, (_, i) => i + 1)
@@ -295,7 +730,6 @@ export default function StudentsPage() {
                     onChange={e => setForm({ ...form, section: e.target.value })}
                     style={{ borderColor: formErrors.section ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {/* Show sections available for the selected grade */}
                     {(form.class_grade
                       ? classes.filter(c => c.grade_level === parseInt(form.class_grade)).map(c => c.section)
                       : ["A", "B", "C", "D"]
@@ -341,14 +775,16 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* ── DETAIL MODAL ── */}
+      {/* ── DETAIL MODAL ──────────────────────────────────────────────────────── */}
       {detail && (
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal-content" style={{ maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="card-title">Student Details</div>
               <button className="icon-btn" onClick={() => setDetail(null)}>
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="modal-body">
@@ -361,14 +797,26 @@ export default function StudentsPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 16 }}>{fullName(detail)}</div>
                     <div style={{ fontSize: 12, color: "var(--text-meta)" }}>
-                      {detail.enrollment ? `Grade ${detail.enrollment.grade_level}${detail.enrollment.section} · Adm. #${detail.enrollment.admission_number}` : "No enrollment data"}
+                      {detail.enrollment
+                        ? `Grade ${detail.enrollment.grade_level}${detail.enrollment.section} · Adm. #${detail.enrollment.admission_number}`
+                        : "No enrollment data"}
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: detail.is_active ? "var(--green-dark)" : "var(--red)", background: detail.is_active ? "var(--green-light)" : "#FEE2E2", padding: "2px 8px", borderRadius: 6 }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700,
+                        color: detail.is_active ? "var(--green-dark)" : "var(--red)",
+                        background: detail.is_active ? "var(--green-light)" : "#FEE2E2",
+                        padding: "2px 8px", borderRadius: 6,
+                      }}>
                         {detail.is_active ? "Active" : "Inactive"}
                       </span>
                       {detail.enrollment?.fee_status && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: FEE_COLORS[detail.enrollment.fee_status], background: `${FEE_COLORS[detail.enrollment.fee_status]}15`, padding: "2px 8px", borderRadius: 6 }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700,
+                          color: FEE_COLORS[detail.enrollment.fee_status],
+                          background: `${FEE_COLORS[detail.enrollment.fee_status]}15`,
+                          padding: "2px 8px", borderRadius: 6,
+                        }}>
                           Fee: {detail.enrollment.fee_status.charAt(0).toUpperCase() + detail.enrollment.fee_status.slice(1)}
                         </span>
                       )}
@@ -410,10 +858,10 @@ export default function StudentsPage() {
                         <span style={{ color: "var(--text-meta)", fontWeight: 600 }}>{r.label}</span>
                         <span style={{
                           fontWeight: 500,
-                          color: r.label === "Fee Status"
-                            ? FEE_COLORS[detail.enrollment!.fee_status]
-                            : undefined
-                        }}>{r.value}</span>
+                          color: r.label === "Fee Status" ? FEE_COLORS[detail.enrollment!.fee_status] : undefined,
+                        }}>
+                          {r.value}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -442,16 +890,35 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* ── MAIN ── */}
+      {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
       <main className="main">
         <div className="topbar">
           <div className="topbar-left">
             <div className="greeting">Manage enrolled students</div>
             <h1>Students</h1>
           </div>
-          <div className="topbar-right">
-            <button className="btn-primary" style={{ background: "var(--blue)", boxShadow: "0 4px 12px rgba(30,64,175,0.2)" }} onClick={() => setShowRegister(true)}>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <div className="topbar-right" style={{ display: "flex", gap: 10 }}>
+            <button
+              className="btn-outline"
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", display: "flex", alignItems: "center", gap: 6 }}
+              onClick={() => setShowBulk(true)}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Bulk Upload
+            </button>
+            <button
+              className="btn-primary"
+              style={{ background: "var(--blue)", boxShadow: "0 4px 12px rgba(30,64,175,0.2)", display: "flex", alignItems: "center", gap: 6 }}
+              onClick={() => setShowRegister(true)}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
               Register Student
             </button>
           </div>
@@ -468,7 +935,9 @@ export default function StudentsPage() {
         {/* Filters */}
         <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <div className="search-box" style={{ flex: 1, minWidth: 200 }}>
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <input type="text" placeholder="Search students…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <select className="filter-select" value={gradeFilter} onChange={e => setGradeFilter(e.target.value === "All" ? "All" : Number(e.target.value))}>
@@ -499,9 +968,12 @@ export default function StudentsPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
-                    <div className="spinner" style={{ margin: "0 auto 12px" }} />Loading students…
-                  </td></tr>
+                  <tr>
+                    <td colSpan={7} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
+                      <div className="spinner" style={{ margin: "0 auto 12px" }} />
+                      Loading students…
+                    </td>
+                  </tr>
                 ) : filtered.length > 0 ? filtered.map(s => (
                   <tr key={s.student_id} style={{ borderBottom: "1px solid #F1F5F9" }}>
                     <td style={{ padding: "14px 20px" }}>
@@ -521,7 +993,12 @@ export default function StudentsPage() {
                     </td>
                     <td style={{ padding: "14px 20px" }}>
                       {s.enrollment?.fee_status ? (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: FEE_COLORS[s.enrollment.fee_status], background: `${FEE_COLORS[s.enrollment.fee_status]}15`, padding: "4px 8px", borderRadius: 6 }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700,
+                          color: FEE_COLORS[s.enrollment.fee_status],
+                          background: `${FEE_COLORS[s.enrollment.fee_status]}15`,
+                          padding: "4px 8px", borderRadius: 6,
+                        }}>
                           {s.enrollment.fee_status.charAt(0).toUpperCase() + s.enrollment.fee_status.slice(1)}
                         </span>
                       ) : "—"}
@@ -533,13 +1010,17 @@ export default function StudentsPage() {
                       </div>
                     </td>
                     <td style={{ padding: "14px 20px" }}>
-                      <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => openDetail(s)}>Details</button>
+                      <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => openDetail(s)}>
+                        Details
+                      </button>
                     </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={7} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
-                    No students found.
-                  </td></tr>
+                  <tr>
+                    <td colSpan={7} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
+                      No students found.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
