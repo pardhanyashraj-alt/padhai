@@ -49,7 +49,7 @@ const roles = [
         <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
     ),
-  },
+  }
 ];
 
 export default function RoleSelectionPage() {
@@ -57,7 +57,14 @@ export default function RoleSelectionPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const handleClick = (id: string) => {
-    router.push(`/login?role=${id}`);
+    const routeByRole: Record<string, string> = {
+      teacher: '/teacher/login',
+      student: '/student/login',
+      admin: '/admin/login',
+      superadmin: '/sudo-admin/login',
+    };
+
+    router.push(routeByRole[id] ?? '/login');
   };
 
   return (

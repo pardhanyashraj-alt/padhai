@@ -14,7 +14,7 @@ export default function SuperAdminLogin() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'superadmin') {
+    if (isAuthenticated && (user?.role === 'superadmin' || user?.role === 'sudo_admin')) {
       router.push('/superadmin/dashboard');
     }
   }, [isAuthenticated, user, router]);
@@ -24,7 +24,7 @@ export default function SuperAdminLogin() {
     setLoading(true);
     setError('');
 
-    const res = await login(email, password);
+    const res = await login(email, password, 'sudo_admin');
     if (res.success) {
       router.push('/superadmin/dashboard');
     } else {

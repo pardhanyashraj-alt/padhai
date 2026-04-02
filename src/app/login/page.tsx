@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import type { UserRole } from '../lib/api';
 
 function LoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { login, isAuthenticated, user } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -33,6 +34,7 @@ function LoginContent() {
       case 'student':
         router.push('/student/dashboard');
         break;
+      case 'sudo_admin':
       case 'superadmin':
         router.push('/superadmin/dashboard');
         break;
@@ -41,12 +43,20 @@ function LoginContent() {
     }
   };
 
+  const getLoginRoleFromPath = (): UserRole => {
+    if (pathname.startsWith('/admin/')) return 'admin';
+    if (pathname.startsWith('/teacher/')) return 'teacher';
+    if (pathname.startsWith('/student/')) return 'student';
+    if (pathname.startsWith('/sudo-admin/')) return 'sudo_admin';
+    return 'student';
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const result = await login(email, password);
+    const result = await login(email, password, getLoginRoleFromPath());
 
     if (result.success) {
       // Redirect will happen via useEffect when user state updates

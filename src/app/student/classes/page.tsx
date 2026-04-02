@@ -92,33 +92,47 @@ export default function MyClasses() {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Enrolled Class</div>
-              <div className="card-subtitle">Grade {studentClass.grade_level} - Section {studentClass.section}</div>
-            </div>
+
+
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+          {/* Class Pill */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "8px 14px",
+              borderRadius: "999px",
+              background: "var(--blue-light, #EFF6FF)",
+              width: "fit-content",
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "var(--blue)",
+            }}
+          >
+            <span
+              style={{
+                background: "var(--blue)",
+                color: "#fff",
+                borderRadius: "999px",
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 700,
+              }}
+            >
+              G{studentClass.grade_level}
+            </span>
+
+            Grade {studentClass.grade_level} - Sec {studentClass.section}
           </div>
 
-          <div className="class-row">
-            <div className="class-icon avatar" style={{ background: 'var(--blue)' }}>
-              G{studentClass.grade_level}
-            </div>
-            <div className="class-info">
-              <div className="class-name">Grade {studentClass.grade_level} - Section {studentClass.section}</div>
-              <div className="class-meta">{studentClass.school_name} · Enrolled {new Date(studentClass.enrolled_on).toLocaleDateString()}</div>
-            </div>
-            <div className="class-info" style={{ flex: 1.5 }}>
-              <div className="class-meta" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                {subjects.length} Subjects
-              </div>
-              <div className="class-meta">{subjects.join(', ')}</div>
-            </div>
-            <Link href={`/student/classes/${studentClass.class_id}`} className="btn-primary" style={{ padding: '8px 16px', textDecoration: 'none' }}>
-              View Class
-            </Link>
-          </div>
+          {/* Meta Info */}
+
+
         </div>
+
 
         {subjects.length > 0 && (
           <div className="card" style={{ marginTop: '24px' }}>

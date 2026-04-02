@@ -1,37 +1,59 @@
-export const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://padhai-backend-qbw5.onrender.com";
+const DEFAULT_BACKEND = "https://padhai-backend-qbw5.onrender.com";
 
-export type UserRole = "student" | "teacher" | "admin";
-const ALL_ROLES: UserRole[] = ["student", "teacher", "admin"];
+function normalizeBase(url: string): string {
+  const t = url.trim().replace(/\/+$/, "");
+  return t || DEFAULT_BACKEND;
+}
 
-// ── Token helpers ──────────────────────────────────────────────
+/**
+ * Single source of truth for the backend base URL.
+ * On both server and browser, calls go directly to the backend.
+ * Override via NEXT_PUBLIC_BASE_URL in .env.local (e.g. http://127.0.0.1:8000)
+ */
+export function getApiBase(): string {
+  return normalizeBase(
+    process.env.NEXT_PUBLIC_BASE_URL || DEFAULT_BACKEND
+  );
+}
+
+/** For backwards compatibility */
+export const API_BASE = getApiBase();
+
+export type UserRole = "student" | "teacher" | "admin" | "sudo_admin";
+
+// ── Role Detection from URL ─────────────────────────────────────────────────
+
+export function getRoleFromPath(): UserRole | null {
+  if (typeof window === "undefined") return null;
+
+  const path = window.location.pathname.toLowerCase();
+
+  if (path.startsWith("/sudo-admin") || path.startsWith("/superadmin")) return "sudo_admin";
+  if (path.startsWith("/admin")) return "admin";
+  if (path.startsWith("/teacher")) return "teacher";
+  if (path.startsWith("/student")) return "student";
+
+  return null;
+}
+
+// ── Token Helpers ───────────────────────────────────────────────────────────
+
 export function getAccessToken(role?: UserRole): string | null {
   if (typeof window === "undefined") return null;
-  if (role) return localStorage.getItem(`${role}_access_token`);
-  // No role provided — scan all roles and return the first match
-  for (const r of ALL_ROLES) {
-    const token = localStorage.getItem(`${r}_access_token`);
-    if (token) return token;
-  }
-  return null;
+
+  const finalRole = role || getRoleFromPath();
+  if (!finalRole) return null;
+
+  return localStorage.getItem(`${finalRole}_access_token`);
 }
 
 export function getRefreshToken(role?: UserRole): string | null {
   if (typeof window === "undefined") return null;
-  if (role) return localStorage.getItem(`${role}_refresh_token`);
-  for (const r of ALL_ROLES) {
-    const token = localStorage.getItem(`${r}_refresh_token`);
-    if (token) return token;
-  }
-  return null;
-}
 
-/** Detects which role's tokens are currently stored. */
-export function getStoredRole(): UserRole | null {
-  if (typeof window === "undefined") return null;
-  for (const r of ALL_ROLES) {
-    if (localStorage.getItem(`${r}_access_token`)) return r;
-  }
-  return null;
+  const finalRole = role || getRoleFromPath();
+  if (!finalRole) return null;
+
+  return localStorage.getItem(`${finalRole}_refresh_token`);
 }
 
 export function setTokens(role: UserRole, access: string, refresh: string) {
@@ -39,53 +61,71 @@ export function setTokens(role: UserRole, access: string, refresh: string) {
   localStorage.setItem(`${role}_refresh_token`, refresh);
 }
 
-/** Clears tokens for a specific role, or all roles if none specified. */
 export function clearTokens(role?: UserRole) {
   if (role) {
     localStorage.removeItem(`${role}_access_token`);
     localStorage.removeItem(`${role}_refresh_token`);
     return;
   }
-  for (const r of ALL_ROLES) {
+  const roles: UserRole[] = ["student", "teacher", "admin", "sudo_admin"];
+  for (const r of roles) {
     localStorage.removeItem(`${r}_access_token`);
     localStorage.removeItem(`${r}_refresh_token`);
   }
 }
 
-// ── Core fetch wrapper (JSON) ──────────────────────────────────
+// ── Refresh Logic ───────────────────────────────────────────────────────────
+
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
 async function tryRefresh(): Promise<string | null> {
-  const role = getStoredRole();
+  const role = getRoleFromPath();
   const refreshToken = role ? getRefreshToken(role) : null;
+
   if (!refreshToken || !role) return null;
 
-  const res = await fetch(`${API_BASE}/auth/refresh`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${refreshToken}` },
-  });
+  try {
+    const res = await fetch(`${getApiBase()}/auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${refreshToken}` },
+    });
 
-  if (!res.ok) {
-    clearTokens(role);
+    if (!res.ok) {
+      clearTokens(role);
+      return null;
+    }
+
+    const data = await res.json();
+    const newAccess = data[`${role}_access_token`] as string;
+    localStorage.setItem(`${role}_access_token`, newAccess);
+    return newAccess;
+  } catch {
     return null;
   }
-
-  const data = await res.json();
-  const newAccess = data[`${role}_access_token`] as string;   // ← role-prefixed key
-  localStorage.setItem(`${role}_access_token`, newAccess);
-  return newAccess;
 }
 
-/**
- * Authenticated JSON fetch.
- * Automatically attaches the access token and retries once on 401 using refresh.
- */
+// ── Redirect Helper ─────────────────────────────────────────────────────────
+
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+
+  const role = getRoleFromPath();
+
+  if (role === "admin") window.location.href = "/admin/login";
+  else if (role === "teacher") window.location.href = "/teacher/login";
+  else if (role === "student") window.location.href = "/student/login";
+  else if (role === "sudo_admin") window.location.href = "/sudo-admin/login";
+  else window.location.href = "/login";
+}
+
+// ── Core Fetch Wrapper (JSON) ───────────────────────────────────────────────
+
 export async function apiFetch(
   path: string,
   options: Omit<RequestInit, "body"> & { body?: any } = {}
 ): Promise<Response> {
-  const role = getStoredRole();
+  const role = getRoleFromPath();
   const accessToken = role ? getAccessToken(role) : null;
 
   const headers: Record<string, string> = {
@@ -106,8 +146,9 @@ export async function apiFetch(
   }
 
   let res: Response;
+
   try {
-    res = await fetch(`${API_BASE}${path}`, fetchOptions);
+    res = await fetch(`${getApiBase()}${path}`, fetchOptions);
   } catch {
     return new Response(JSON.stringify({ detail: "Cannot connect to server." }), {
       status: 503,
@@ -115,6 +156,7 @@ export async function apiFetch(
     });
   }
 
+  // 401 — attempt a single token refresh
   if (res.status === 401) {
     if (!isRefreshing) {
       isRefreshing = true;
@@ -128,35 +170,32 @@ export async function apiFetch(
 
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      res = await fetch(`${getApiBase()}${path}`, { ...fetchOptions, headers });
     } else {
-      if (typeof window !== "undefined") {
-        clearTokens();
-        window.location.href = "/login";
-      }
+      clearTokens();
+      redirectToLogin();
     }
   }
 
   return res;
 }
 
-/**
- * Authenticated FormData fetch (for file uploads).
- * Do NOT set Content-Type — the browser adds the multipart boundary automatically.
- */
+// ── FormData Fetch (file uploads) ───────────────────────────────────────────
+
 export async function apiFormData(
   path: string,
   formData: FormData
 ): Promise<Response> {
-  const role = getStoredRole();
+  const role = getRoleFromPath();
   const accessToken = role ? getAccessToken(role) : null;
 
   const headers: Record<string, string> = {};
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
   let res: Response;
+
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(`${getApiBase()}${path}`, {
       method: "POST",
       headers,
       body: formData,
@@ -181,16 +220,14 @@ export async function apiFormData(
 
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(`${API_BASE}${path}`, {
+      res = await fetch(`${getApiBase()}${path}`, {
         method: "POST",
         headers,
         body: formData,
       });
     } else {
-      if (typeof window !== "undefined") {
-        clearTokens();
-        window.location.href = "/superadmin/login";
-      }
+      clearTokens();
+      redirectToLogin();
     }
   }
 
