@@ -43,9 +43,9 @@ interface ClassMeta {
 
 // ─── REUSABLE COMPONENTS ──────────────────────────────────────
 
-function SubjectHeader({ className }: { className: string }) {
+function SubjectHeader({ className, classId }: { className: string, classId: string }) {
   return (
-    <div className="flex justify-between items-center mb-2">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
       <div className="flex items-center gap-4">
         <Link href="/teacher/classes" className="flex items-center justify-center w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-xl hover:bg-slate-50 transition-all text-slate-600">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -62,6 +62,14 @@ function SubjectHeader({ className }: { className: string }) {
           </div>
           <h1 className="m-0 text-2xl md:text-3xl font-bold text-slate-900 leading-tight">{className}</h1>
         </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Link 
+          href={`/teacher/published?classId=${classId}`} 
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-[13px] font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm no-underline"
+        >
+          📂 Published Content
+        </Link>
       </div>
     </div>
   );
@@ -109,7 +117,8 @@ function PublishedContentCard({ item, subject, classId, grade }: { item: any, su
         { bg: "bg-emerald-50", text: "text-emerald-600", icon: "emerald" };
 
   const handleLink = (mode: 'view' | 'edit') => {
-    router.push(`/teacher/ai-output?type=${encodeURIComponent(item.type)}&book=${encodeURIComponent(item.book)}&chapter=${encodeURIComponent(item.chapter)}&subject=${encodeURIComponent(subject)}&grade=${grade}&classId=${classId}&mode=${mode}`);
+    const chapterLabel = item.chapter || `Chapter ${item.chapter_number}`;
+    router.push(`/teacher/ai-output?type=${encodeURIComponent(item.type)}&book=${encodeURIComponent(item.book)}&chapter=${encodeURIComponent(chapterLabel)}&subject=${encodeURIComponent(subject)}&grade=${grade}&classId=${classId}&mode=${mode}`);
   };
 
   return (
@@ -129,7 +138,9 @@ function PublishedContentCard({ item, subject, classId, grade }: { item: any, su
       </div>
       <div className="space-y-1">
         <div className="text-[14px] font-bold text-slate-700 truncate">{item.book}</div>
-        <div className="text-[13px] text-slate-500 font-medium">{item.chapter}</div>
+        <div className="text-[13px] text-slate-500 font-medium">
+          {item.chapter || `Chapter ${item.chapter_number}`}
+        </div>
       </div>
       <div className="flex gap-2.5 mt-auto pt-4 border-t border-slate-50">
         <button onClick={() => handleLink('view')} className="flex-1 py-2 text-[13px] font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all">View</button>
@@ -295,7 +306,6 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
   const [students, setStudents] = useState<Student[]>([]);
   const [curriculum, setCurriculum] = useState<Chapter[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
-  const [publishedContent, setPublishedContent] = useState<any[]>([]);
   const [classNotFound, setClassNotFound] = useState(false);
 
   // AI Modal State
@@ -315,9 +325,6 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         const metaRes = await apiFetch(`/teacher/dashboard`);
         // Use /books instead of /chapters to avoid backend AttributeError on ClassChapter.chapter_title
         const curriculumRes = await apiFetch(`/teacher/classes/${classId}/books`);
-        const pubSummary = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=summary`);
-        const pubQuiz = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=quiz`);
-        const pubQA = await apiFetch(`/teacher/classes/${classId}/published-content?content_type=qa_bank`);
         if (metaRes.ok) {
           const dashData = await metaRes.json();
           const cls = dashData.classes.find((c: any) => c.class_id === classId);
@@ -353,27 +360,11 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           const curData = await curriculumRes.json();
           const assignedChapters = (curData.books || []).filter((b: any) => b.is_assigned);
           setCurriculum(assignedChapters.map((c: any) => ({
-            id: c.book_id, // using book_id since class_chapter_id isn't directly exposed here
+            id: c.book_id,
             name: c.chapter_title || `Chapter ${c.chapter_number}`,
-            is_completed: false // We can't know completion from this endpoint, default false
+            is_completed: false
           })));
         }
-        // Test data is currently missing from backend
-
-        let allPublished: any[] = [];
-        if (pubSummary.ok) {
-          const data = await pubSummary.json();
-          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Summary", date: new Date(c.published_date).toLocaleDateString() }))];
-        }
-        if (pubQuiz.ok) {
-          const data = await pubQuiz.json();
-          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Quiz", date: new Date(c.published_date).toLocaleDateString() }))];
-        }
-        if (pubQA.ok) {
-          const data = await pubQA.json();
-          allPublished = [...allPublished, ...(data.published_content || []).map((c: any) => ({ ...c, type: "Question Answer Bank", date: new Date(c.published_date).toLocaleDateString() }))];
-        }
-        setPublishedContent(allPublished.sort((a, b) => new Date(b.published_date).getTime() - new Date(a.published_date).getTime()));
 
       } catch (err: any) {
         console.error("Failed to fetch class data:", err);
@@ -441,9 +432,6 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
     router.push(`/teacher/ai-output?type=${encodeURIComponent(selectedType)}&book=${encodeURIComponent(book)}&chapter=${encodeURIComponent(chapter)}&subject=${encodeURIComponent(classMeta?.name || "")}&grade=${classMeta?.grade_level}&classId=${classId}`);
   };
 
-  const filteredPublishedContent = mockPublished.filter(
-    (item) => item.subject === classMeta?.name
-  );
 
   if (loading) {
     return (
@@ -533,7 +521,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
         <div className="p-4 md:p-6 space-y-8 max-w-[1400px] mx-auto">
 
           <div className="space-y-5">
-            <SubjectHeader className={classMeta.name} />
+            <SubjectHeader className={classMeta.name} classId={classId} />
             <AIActionButtons onAction={(type) => { setSelectedType(type); setShowForm(true); }} />
           </div>
 
@@ -590,44 +578,6 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Published Content Section */}
-          <div className="space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </div>
-              <h2 className="text-[18px] font-bold text-slate-800">Published Content</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {publishedContent.length > 0 ? publishedContent.map(item => (
-                <PublishedContentCard
-                  key={`${item.class_chapter_id}-${item.type}`}
-                  item={{
-                    ...item,
-                    type: item.type,
-                    book: item.book_name,
-                    chapter: item.chapter_title,
-                    date: item.date
-                  }}
-                  subject={classMeta.name}
-                  classId={classId}
-                  grade={classMeta.grade_level}
-                />
-              )) : (
-                <div className="col-span-full py-12 bg-white border border-slate-100 border-dashed rounded-3xl flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center mb-4">
-                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <h3 className="font-bold text-slate-700">No Published Content</h3>
-                  <p className="text-sm text-slate-400 max-w-[280px]">Begin generating AI materials to see them here.</p>
-                </div>
-              )}
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col">

@@ -41,7 +41,7 @@ export default function ClassesPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<ClassData[]>([]);
-  
+
   // AI Modal state
   const [aiModal, setAIModal] = useState<AIModalData | null>(null);
   const [aiBook, setAIBook] = useState("");
@@ -65,8 +65,8 @@ export default function ClassesPage() {
             section: c.section,
             meta: `${c.student_count || 0} students · ${c.section}`,
             students: c.student_count || 0,
-            schedule: "TBD", 
-            time: "TBD", 
+            schedule: "TBD",
+            time: "TBD",
             progress: c.total_chapters > 0 ? Math.round((c.published_chapters / c.total_chapters) * 100) : 0,
             color: c.grade_level % 2 === 0 ? "var(--blue)" : "var(--orange)",
             fillClass: c.grade_level % 2 === 0 ? "fill-blue" : "fill-orange",
@@ -131,15 +131,15 @@ export default function ClassesPage() {
   }, [aiBook, allBooks]);
 
   const totalStudents = classes.reduce((a, b) => a + b.students, 0);
-  const avgProgress = classes.length > 0 
+  const avgProgress = classes.length > 0
     ? Math.round(classes.reduce((a, b) => a + b.progress, 0) / classes.length)
     : 0;
 
   const openAIModal = (cls: ClassData, contentType: string) => {
-    setAIModal({ 
-      classId: cls.id, 
-      className: `${cls.grade} - Section ${cls.section}`, 
-      subject: cls.subject_raw, 
+    setAIModal({
+      classId: cls.id,
+      className: `${cls.grade} - Section ${cls.section}`,
+      subject: cls.subject_raw,
       contentType,
       grade_level: cls.grade_level_raw
     });
@@ -166,8 +166,8 @@ export default function ClassesPage() {
         <Sidebar activePage="classes" />
         <main className="main flex items-center justify-center p-20">
           <div className="flex flex-col items-center gap-4">
-             <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-             <p className="font-bold text-slate-500">Loading your classes...</p>
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="font-bold text-slate-500">Loading your classes...</p>
           </div>
         </main>
       </>
@@ -255,11 +255,7 @@ export default function ClassesPage() {
             <div className="greeting">Your teaching overview</div>
             <h1>My Classes</h1>
           </div>
-          <div className="topbar-right">
-            <Link href="/teacher/published" className="btn-outline" style={{ textDecoration: "none", fontSize: 13 }}>
-              📂 Published Content
-            </Link>
-          </div>
+
         </div>
 
         {/* Stats */}

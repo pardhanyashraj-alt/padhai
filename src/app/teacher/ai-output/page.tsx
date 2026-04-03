@@ -526,21 +526,19 @@ function AIOutputContent() {
               book_name: book,
               class_grade: parseInt(grade),
               subject,
-              chapter_number,
-              content_type: backend_type,
-            },
-          });
-        } else {
-          res = await apiFetch("/teacher/get-content", {
-            method: "POST",
-            body: {
-              book_name: book,
-              class_grade: String(grade),
-              subject,
               chapter_number: String(chapter_number),
               content_type: backend_type,
             },
           });
+        } else {
+          const params = new URLSearchParams({
+            book_name: book,
+            class_grade: String(grade),
+            subject: subject,
+            chapter_number: String(chapter_number),
+            content_type: backend_type,
+          });
+          res = await apiFetch(`/teacher/get-content?${params.toString()}`);
         }
 
         if (res.ok) {
@@ -600,15 +598,12 @@ function AIOutputContent() {
     setIsSaving(true);
     try {
       const structuredContent = buildPayload(parsedData, backend_type);
-
       const body: Record<string, any> = {
         content_type: backend_type,
         content: structuredContent,
         is_save_only: true,
       };
 
-
-      // Use class_chapter_id if we have it; otherwise send full metadata
       if (classChapterId) {
         body.class_chapter_id = classChapterId;
       } else {
@@ -616,16 +611,12 @@ function AIOutputContent() {
         body.book_name = book;
         body.class_grade = parseInt(grade);
         body.subject = subject;
-        body.chapter_number = chapter_number;
+        body.chapter_number = parseInt(String(chapter_number)) || 1;
       }
 
-      // FIXED
-      const res = await apiFetch("/teacher/class-chapters/edit", {
+      const res = await apiFetch("/teacher/class-chapters/publish", {
         method: "POST",
-        body: JSON.stringify(body),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        body,
       });
 
       if (res.ok) {
@@ -649,7 +640,6 @@ function AIOutputContent() {
     setIsSaving(true);
     try {
       const structuredContent = buildPayload(parsedData, backend_type);
-
       const body: Record<string, any> = {
         content_type: backend_type,
         content: structuredContent,
@@ -662,7 +652,7 @@ function AIOutputContent() {
         body.book_name = book;
         body.class_grade = parseInt(grade);
         body.subject = subject;
-        body.chapter_number = chapter_number;
+        body.chapter_number = parseInt(String(chapter_number)) || 1;
       }
 
       const res = await apiFetch("/teacher/class-chapters/publish", {
