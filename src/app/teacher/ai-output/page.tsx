@@ -526,19 +526,21 @@ function AIOutputContent() {
               book_name: book,
               class_grade: parseInt(grade),
               subject,
-              chapter_number: String(chapter_number),
+              chapter_number: chapter_number,
               content_type: backend_type,
             },
           });
         } else {
-          const params = new URLSearchParams({
-            book_name: book,
-            class_grade: String(grade),
-            subject: subject,
-            chapter_number: String(chapter_number),
-            content_type: backend_type,
+          res = await apiFetch("/teacher/get-content", {
+            method: "POST",
+            body: {
+              book_name: book,
+              class_grade: parseInt(grade),
+              subject: subject,
+              chapter_number: chapter_number,
+              content_type: backend_type,
+            },
           });
-          res = await apiFetch(`/teacher/get-content?${params.toString()}`);
         }
 
         if (res.ok) {
@@ -592,47 +594,6 @@ function AIOutputContent() {
     return content;
   }
 
-  // ── Save Draft ──────────────────────────────────────────────────────────────
-  const handleSaveDraft = async () => {
-    if (!parsedData) return;
-    setIsSaving(true);
-    try {
-      const structuredContent = buildPayload(parsedData, backend_type);
-      const body: Record<string, any> = {
-        content_type: backend_type,
-        content: structuredContent,
-        is_save_only: true,
-      };
-
-      if (classChapterId) {
-        body.class_chapter_id = classChapterId;
-      } else {
-        body.class_id = classId;
-        body.book_name = book;
-        body.class_grade = parseInt(grade);
-        body.subject = subject;
-        body.chapter_number = parseInt(String(chapter_number)) || 1;
-      }
-
-      const res = await apiFetch("/teacher/class-chapters/publish", {
-        method: "POST",
-        body,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.class_chapter_id && !classChapterId) setClassChapterId(data.class_chapter_id);
-        showToast("Draft saved successfully! 💾");
-      } else {
-        showToast("Failed to save draft.");
-      }
-    } catch (err) {
-      console.error("Save draft error:", err);
-      showToast("Network error during save.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // ── Publish ─────────────────────────────────────────────────────────────────
   const handlePublish = async () => {
@@ -917,14 +878,7 @@ function AIOutputContent() {
             Back to Details
           </button>
 
-          <div className="flex gap-4">
-            <button
-              disabled={isSaving}
-              onClick={handleSaveDraft}
-              className="px-8 py-3 bg-white border-2 border-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
-            >
-              {isSaving ? "Saving..." : "Save Draft"}
-            </button>
+          <div className="flex justify-end gap-4">
             <button
               disabled={isSaving || published}
               onClick={handlePublish}
