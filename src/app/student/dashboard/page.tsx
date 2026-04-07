@@ -348,8 +348,6 @@ export default function StudentDashboard() {
               </div>
             </div>
 
-
-
             {(contentFilter === 'All' || contentFilter === 'Notes') && (
               <div className="class-row px-6 sm:px-8" style={{ padding: '16px 32px', borderBottom: '1px solid #F3F4F6' }}>
                 <div className="stat-icon blue" style={{ width: '40px', height: '40px' }}>

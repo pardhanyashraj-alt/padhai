@@ -31,7 +31,7 @@ interface ChapterContent {
   summary?: any;
   quiz?: any;
   qa_bank?: any;
-  ppt_structure?: any;
+
   latest_attempt?: {
     quiz_attempt_id: string;
     score: number;
@@ -297,7 +297,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
         const data = await res.json();
         if (
           !data ||
-          (!data.summary && !data.quiz && !data.qa_bank && !data.ppt_structure)
+          (!data.summary && !data.quiz && !data.qa_bank)
         ) {
           setChapterContent(null);
         } else {
@@ -323,7 +323,6 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
     { key: "summary", label: "Summaries", color: "var(--blue)" },
     { key: "quiz", label: "Quizzes", color: "var(--green)" },
     { key: "qa_bank", label: "Q&A Banks", color: "var(--orange)" },
-    { key: "ppt_structure", label: "PPT Structures", color: "var(--purple)" },
   ];
 
   // ─── renderSummary ───────────────────────────────────────────────────────────
@@ -336,22 +335,41 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
 
     const heading = summary.heading || (summary as any).title || "";
     const keyPoints = summary.key_points || summary.keyPoints || [];
-    // FIXED — unwrap nested .summary if present, otherwise treat the whole object as paragraph sections
-    // but exclude known non-section keys so they don't render as section entries
     const KNOWN_KEYS = new Set(["heading", "title", "key_points", "keyPoints", "summary"]);
     const nestedSummary = (summary as any).summary;
+
+    // Overview: prefer a nested plain-string .summary, else a plain string at root named "overview"
+    const overviewText =
+      typeof nestedSummary === "string"
+        ? nestedSummary
+        : typeof (summary as any).overview === "string"
+        ? (summary as any).overview
+        : null;
+
+    // Section paragraphs: object entries that aren't the known top-level keys
     const paragraphSummary =
       nestedSummary && typeof nestedSummary === "object" && !Array.isArray(nestedSummary)
         ? nestedSummary
         : Object.fromEntries(
-          Object.entries(summary).filter(
-            ([k]) => !KNOWN_KEYS.has(k) && typeof (summary as any)[k] === "string"
-          )
-        );
+            Object.entries(summary).filter(
+              ([k]) => !KNOWN_KEYS.has(k) && k !== "overview" && typeof (summary as any)[k] === "string"
+            )
+          );
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* 1. Title / Heading */}
         {heading && <h4 style={{ margin: 0, color: "var(--text-primary)" }}>{heading}</h4>}
+
+        {/* 2. Overview / Summary paragraph */}
+        {overviewText && (
+          <div style={{ padding: 14, borderRadius: 10, background: "var(--bg)", border: "1px solid var(--border)" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-meta)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Summary</div>
+            <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{overviewText}</div>
+          </div>
+        )}
+
+        {/* 3. Key Points */}
         {Array.isArray(keyPoints) && keyPoints.length > 0 && (
           <div>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Key Points</div>
@@ -362,6 +380,8 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
             </ul>
           </div>
         )}
+
+        {/* 4. Other section paragraphs */}
         {Object.keys(paragraphSummary).length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Section Summary</div>
@@ -373,7 +393,8 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
             ))}
           </div>
         )}
-        {!heading && !keyPoints.length && !Object.keys(paragraphSummary).length && (
+
+        {!heading && !overviewText && !keyPoints.length && !Object.keys(paragraphSummary).length && (
           <div style={{ color: "var(--text-meta)", fontSize: 14 }}>Summary data format is not recognized.</div>
         )}
       </div>
@@ -423,108 +444,6 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
             </div>
           );
         })}
-      </div>
-    );
-  };
-
-  // ─── renderPPTStructure ───────────────────────────────────────────────────────
-
-  const renderPPTStructure = (pptData: any) => {
-    if (!pptData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No PPT structure available.</div>;
-
-    const body = (pptData as any).ppt || pptData;
-    const slides = body.slides || [];
-    const heading = pptData.heading || body.heading || "";
-
-    if (!Array.isArray(slides) || slides.length === 0) {
-      return (
-        <div style={{ color: "var(--text-meta)", fontSize: 13, padding: 12, background: "var(--bg)", borderRadius: 10 }}>
-          No slides available in this deck.
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {heading && <h4 style={{ margin: 0, color: "var(--text-primary)", fontSize: 18 }}>{heading}</h4>}
-        
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
-          {slides.map((slide: any, idx: number) => (
-            <div key={idx} style={{ 
-              padding: 24, 
-              borderRadius: 16, 
-              background: "var(--card-bg)", 
-              border: "1.5px solid var(--border)",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
-              minHeight: 180,
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              {/* Slide numbering */}
-              <div style={{ 
-                position: "absolute", 
-                top: 14, 
-                right: 18, 
-                fontSize: 10, 
-                fontWeight: 800, 
-                color: "var(--white)", 
-                background: "var(--blue)", 
-                padding: "4px 10px", 
-                borderRadius: "99px"
-              }}>
-                SLIDE {slide.slide_number || idx + 1}
-              </div>
-
-              {/* Slide Body */}
-              <div style={{ flex: 1, marginTop: 10 }}>
-                {slide.slide_type === "title" ? (
-                  <div style={{ textAlign: "center", padding: "30px 0" }}>
-                    <h2 style={{ fontSize: 28, fontWeight: 800, color: "var(--blue)", marginBottom: 8 }}>{slide.title}</h2>
-                    {slide.subtitle && <p style={{ fontSize: 18, color: "var(--text-secondary)" }}>{slide.subtitle}</p>}
-                  </div>
-                ) : (
-                  <>
-                    <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--blue)" }}></span>
-                      {slide.title}
-                    </h3>
-                    
-                    {Array.isArray(slide.bullet_points) && slide.bullet_points.length > 0 && (
-                      <ul style={{ paddingLeft: 24, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                        {slide.bullet_points.map((pt: string, j: number) => (
-                          <li key={j} style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                            {pt}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Decorative slide type badge */}
-              <div style={{ 
-                marginTop: 20, 
-                paddingTop: 16, 
-                borderTop: "1px solid var(--border)",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text-meta)",
-                textTransform: "uppercase",
-                display: "flex",
-                alignItems: "center",
-                gap: 6
-              }}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M5 19V5a2 2 0 012-2h10a2 2 0 012 2v14M12 7v6m-4-2h8" />
-                </svg>
-                {slide.slide_type || "Content"}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     );
   };
@@ -852,7 +771,34 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                 <div style={{ padding: "0 24px 24px" }}>
                   {selectedContentType === "summary" && (
                     <div>
-                      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Summary</h3>
+                      {/* Chapter Name Banner */}
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "14px 16px",
+                        borderRadius: 12,
+                        background: "var(--blue-light)",
+                        border: "1.5px solid var(--blue)",
+                        marginBottom: 16,
+                      }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 8,
+                          background: "var(--blue)", color: "white",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: 800, fontSize: 14, flexShrink: 0,
+                        }}>
+                          {chapterContent.chapter_number}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--blue)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                            Chapter {chapterContent.chapter_number}
+                          </div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                            {chapterContent.book_name}
+                          </div>
+                        </div>
+                      </div>
                       {renderSummary(chapterContent?.summary)}
                     </div>
                   )}
@@ -868,12 +814,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                       {renderQABank(chapterContent?.qa_bank)}
                     </div>
                   )}
-                   {selectedContentType === "ppt_structure" && (
-                    <div>
-                      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>PPT Deck Structure</h3>
-                      {renderPPTStructure(chapterContent?.ppt_structure)}
-                    </div>
-                  )}
+
                 </div>
               </div>
             )}
