@@ -118,18 +118,18 @@ function ViewSummary({ data }: { data: any }) {
   const heading = data?.heading || data?.chapter_title || "";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {heading && <div style={{ fontWeight: 800, fontSize: 18, color: "var(--text-bold)", marginBottom: 4 }}>{heading}</div>}
+      {heading && <div style={{ fontWeight: 800, fontSize: 18, color: "var(--text-primary)", marginBottom: 4 }}>{heading}</div>}
       {summaryObj && Object.entries(summaryObj).map(([title, desc], i) => (
-        <div key={i} style={{ background: "#F8FAFC", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border-light)" }}>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--text-bold)" }}>{title}</div>
+        <div key={i} style={{ background: "var(--bg)", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border)" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--text-primary)" }}>{title}</div>
           <div style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>{desc as string}</div>
         </div>
       ))}
       {keyPoints && keyPoints.length > 0 && (
-        <div style={{ background: "#F0FDF4", borderRadius: 16, padding: "16px 20px", border: "1px solid #BBF7D0" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#166534", marginBottom: 10 }}>✨ Key Points</div>
+        <div style={{ background: "var(--green-light)", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border)" }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--green-dark)", marginBottom: 10 }}>✨ Key Points</div>
           <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-            {keyPoints.map((pt, i) => <li key={i} style={{ fontSize: 14, color: "#166534", lineHeight: 1.6 }}>{pt}</li>)}
+            {keyPoints.map((pt, i) => <li key={i} style={{ fontSize: 14, color: "var(--green-dark)", lineHeight: 1.6 }}>{pt}</li>)}
           </ul>
         </div>
       )}
@@ -143,16 +143,16 @@ function ViewQuiz({ data }: { data: any }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {questions.map((q: any, i: number) => (
-        <div key={i} style={{ background: "#F8FAFC", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border-light)", position: "relative", overflow: "hidden" }}>
+        <div key={i} style={{ background: "var(--bg)", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border)", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "var(--blue)" }} />
           <div style={{ paddingLeft: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: "var(--text-bold)" }}>Q{i + 1}: {q.question_text}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: "var(--text-primary)" }}>Q{i + 1}: {q.question_text}</div>
             {q.options && typeof q.options === "object" && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {Object.entries(q.options).map(([key, val]) => {
                   const isCorrect = key === q.correct_answer;
                   return (
-                    <div key={key} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${isCorrect ? "#86EFAC" : "#E2E8F0"}`, background: isCorrect ? "#F0FDF4" : "white", fontSize: 13, color: isCorrect ? "#166534" : "var(--text-secondary)", fontWeight: isCorrect ? 700 : 500 }}>
+                    <div key={key} style={{ padding: "8px 12px", borderRadius: 10, border: `1px solid ${isCorrect ? "var(--green)" : "var(--border)"}`, background: isCorrect ? "var(--green-light)" : "var(--card-bg)", fontSize: 13, color: isCorrect ? "var(--green-dark)" : "var(--text-secondary)", fontWeight: isCorrect ? 700 : 500 }}>
                       <span style={{ fontWeight: 800, marginRight: 6 }}>{key}.</span>{val as string}
                     </div>
                   );
@@ -172,14 +172,14 @@ function ViewQABank({ data }: { data: any }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {exercises.map((section: any, si: number) => (
-        <div key={si} style={{ background: "#F8FAFC", borderRadius: 16, border: "1px solid var(--border-light)", overflow: "hidden" }}>
+        <div key={si} style={{ background: "var(--bg)", borderRadius: 16, border: "1px solid var(--border)", overflow: "hidden" }}>
           {section.section_title && (
-            <div style={{ padding: "12px 20px", background: "white", borderBottom: "1px solid var(--border-light)", fontWeight: 700, fontSize: 14, color: "var(--text-bold)" }}>{section.section_title}</div>
+            <div style={{ padding: "12px 20px", background: "var(--card-bg)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>{section.section_title}</div>
           )}
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             {(section.questions || []).map((q: any, qi: number) => (
               <div key={qi}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-bold)", marginBottom: 4 }}>Q{qi + 1}: {q.question_text}</div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>Q{qi + 1}: {q.question_text}</div>
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", paddingLeft: 12, borderLeft: "2px solid var(--border)" }}>{q.answer}</div>
               </div>
             ))}
@@ -192,7 +192,7 @@ function ViewQABank({ data }: { data: any }) {
 
 // ─── EDIT COMPONENTS ─────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 12px", borderRadius: 10, border: "1.5px solid #E2E8F0", background: "white", fontSize: 14, color: "var(--text-bold)", outline: "none", fontFamily: "inherit", marginBottom: 8, boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--input-bg)", fontSize: 14, color: "var(--text-primary)", outline: "none", fontFamily: "inherit", marginBottom: 8, boxSizing: "border-box" };
 
 function EditSummary({ data, onChange }: { data: any; onChange: (d: any) => void }) {
   const summaryObj = findSummary(data) ?? {};
@@ -206,7 +206,7 @@ function EditSummary({ data, onChange }: { data: any; onChange: (d: any) => void
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {Object.entries(summaryObj).map(([title, desc], i) => (
-        <div key={i} style={{ background: "#F8FAFC", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border-light)", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div key={i} style={{ background: "var(--bg)", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
           <input style={inputStyle} value={title} onChange={e => updateSummaryEntry(title, e.target.value, desc as string)} />
           <textarea style={{ ...inputStyle, minHeight: 80 }} value={desc as string} onChange={e => updateSummaryEntry(title, title, e.target.value)} />
         </div>
@@ -226,7 +226,7 @@ function EditQuiz({ data, onChange }: { data: any; onChange: (d: any) => void })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {questions.map((q: any, qi: number) => (
-        <div key={qi} style={{ background: "#F8FAFC", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border-light)" }}>
+        <div key={qi} style={{ background: "var(--bg)", borderRadius: 16, padding: "16px 20px", border: "1px solid var(--border)" }}>
           <textarea style={inputStyle} value={q.question_text} onChange={e => updateQuestion(qi, "question_text", e.target.value)} />
         </div>
       ))}
@@ -244,7 +244,7 @@ function EditQABank({ data, onChange }: { data: any; onChange: (d: any) => void 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {exercises.map((section: any, si: number) => (
-        <div key={si} style={{ background: "#F8FAFC", borderRadius: 16, border: "1px solid var(--border-light)", padding: 16 }}>
+        <div key={si} style={{ background: "var(--bg)", borderRadius: 16, border: "1px solid var(--border)", padding: 16 }}>
           {(section.questions || []).map((q: any, qi: number) => (
             <div key={qi} style={{ marginBottom: 12 }}>
               <textarea style={inputStyle} value={q.question_text} onChange={e => updateQuestion(si, qi, "question_text", e.target.value)} />
@@ -361,27 +361,27 @@ function ContentPanel({
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "stretch" }}>
       <div style={{ flex: 1, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div style={{ width: 560, background: "white", display: "flex", flexDirection: "column", boxShadow: "-20px 0 60px rgba(0,0,0,0.12)", overflowY: "auto" }}>
+      <div style={{ width: 560, background: "var(--white)", display: "flex", flexDirection: "column", boxShadow: "-20px 0 60px rgba(0,0,0,0.12)", overflowY: "auto" }}>
         {toast && (
-          <div style={{ position: "fixed", bottom: 32, right: 32, zIndex: 9999, background: "#10B981", color: "white", padding: "14px 22px", borderRadius: 14, fontWeight: 700 }}>{toast}</div>
+          <div style={{ position: "fixed", bottom: 32, right: 32, zIndex: 9999, background: "var(--green)", color: "white", padding: "14px 22px", borderRadius: 14, fontWeight: 700 }}>{toast}</div>
         )}
-        <div style={{ padding: "28px 32px 24px", borderBottom: "1px solid #F1F5F9", display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "sticky", top: 0, background: "white", zIndex: 10 }}>
+        <div style={{ padding: "28px 32px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "sticky", top: 0, background: "var(--white)", zIndex: 10 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ padding: "6px 8px", background: colors.bg, borderRadius: 10, fontSize: 18 }}>{typeIcon[item.contentType as ContentType]}</div>
               <span style={{ fontSize: 11, fontWeight: 900, color: colors.text, background: colors.bg, padding: "4px 12px", borderRadius: 8, textTransform: "uppercase" }}>{item.contentType}</span>
             </div>
-            <div style={{ fontWeight: 800, fontSize: 17, color: "#0F172A", marginBottom: 4 }}>{item.chapter}</div>
-            <div style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}>{item.book} · {item.subject}</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "var(--text-primary)", marginBottom: 4 }}>{item.chapter}</div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{item.book} · {item.subject}</div>
           </div>
-          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #E2E8F0", background: "white", cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--white)", color: "var(--text-primary)", cursor: "pointer" }}>✕</button>
         </div>
-        <div style={{ padding: "16px 32px", borderBottom: "1px solid #F1F5F9", display: "flex", gap: 8 }}>
-          <button onClick={() => setIsEditing(false)} style={{ padding: "8px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: !isEditing ? "#1E40AF" : "#F1F5F9", color: !isEditing ? "white" : "#64748B" }}>👁 View</button>
-          <button onClick={() => setIsEditing(true)} style={{ padding: "8px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: isEditing ? "#1E40AF" : "#F1F5F9", color: isEditing ? "white" : "#64748B" }} data-edit-trigger>✏️ Edit</button>
+        <div style={{ padding: "16px 32px", borderBottom: "1px solid var(--border)", display: "flex", gap: 8 }}>
+          <button onClick={() => setIsEditing(false)} style={{ padding: "8px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: !isEditing ? "var(--blue)" : "var(--bg)", color: !isEditing ? "white" : "var(--text-secondary)" }}>👁 View</button>
+          <button onClick={() => setIsEditing(true)} style={{ padding: "8px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: isEditing ? "var(--blue)" : "var(--bg)", color: isEditing ? "white" : "var(--text-secondary)" }} data-edit-trigger>✏️ Edit</button>
         </div>
         <div style={{ flex: 1, padding: "24px 32px", overflowY: "auto" }}>
-          {loading ? <p>Loading...</p> : isEditing ? (
+          {loading ? <p style={{ color: "var(--text-primary)" }}>Loading...</p> : isEditing ? (
             <>
               {item.contentType === "Summary" && <EditSummary data={editableContent} onChange={setEditableContent} />}
               {item.contentType === "Quiz" && <EditQuiz data={editableContent} onChange={setEditableContent} />}
@@ -395,9 +395,9 @@ function ContentPanel({
             </>
           )}
         </div>
-        <div style={{ padding: "20px 32px", borderTop: "1px solid #F1F5F9", display: "flex", justifyContent: "flex-end", gap: 12 }}>
-          <button onClick={onClose} style={{ padding: "10px 22px", borderRadius: 12, border: "1.5px solid #E2E8F0", background: "white", cursor: "pointer" }}>Close</button>
-          {isEditing && <button onClick={handleSave} disabled={saving} style={{ padding: "10px 28px", borderRadius: 12, border: "none", background: "#1E40AF", color: "white", fontWeight: 800, cursor: "pointer" }}>{saving ? "Saving..." : "Save"}</button>}
+        <div style={{ padding: "20px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <button onClick={onClose} style={{ padding: "10px 22px", borderRadius: 12, border: "1.5px solid var(--border)", background: "var(--white)", color: "var(--text-primary)", cursor: "pointer" }}>Close</button>
+          {isEditing && <button onClick={handleSave} disabled={saving} style={{ padding: "10px 28px", borderRadius: 12, border: "none", background: "var(--blue)", color: "white", fontWeight: 800, cursor: "pointer" }}>{saving ? "Saving..." : "Save"}</button>}
         </div>
       </div>
     </div>
@@ -496,29 +496,32 @@ function PublishedContentList() {
   return (
     <>
       {activeItem && <ContentPanel item={activeItem} onClose={() => setActiveItem(null)} />}
-      <main className="main" style={{ background: "#F1F5F9" }}>
+      <main className="main">
         <div className="topbar">
-          <div className="topbar-left">
-            <div className="greeting" style={{ fontStyle: "normal", opacity: 0.6 }}>{classId ? `Pedagogical assets for ${className || "Class"}` : "Manage your AI-generated pedagogical assets"}</div>
-            <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.03em" }}>{classId ? "Class Gallery" : "Content Gallery"}</h1>
+          <div className="topbar-left" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <button onClick={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid var(--border)", background: "var(--white)", color: "var(--text-primary)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div>
+              <div className="greeting" style={{ fontStyle: "normal", opacity: 0.6 }}>{classId ? `Pedagogical assets for ${className || "Class"}` : "Manage your AI-generated pedagogical assets"}</div>
+              <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.03em" }}>{classId ? "Class Gallery" : "Content Gallery"}</h1>
+            </div>
           </div>
           <div className="topbar-right">
-            <Link href="/teacher/classes" className="btn-primary" style={{ textDecoration: "none", borderRadius: 16, padding: "12px 24px", boxShadow: "0 10px 25px -5px rgba(59,130,246,0.3)" }}>
-              + Generate New Content
-            </Link>
+            {/* Remove generate content button as per user request */}
           </div>
         </div>
 
         {/* Stats */}
         <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: 24, marginBottom: 40 }}>
-          <div className="stat-card" style={{ background: "white", borderRadius: 24, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "var(--blue)" }}>{publishedContent.length}</div><div className="stat-label">Total Assets</div></div>
-          <div className="stat-card" style={{ background: "white", borderRadius: 24, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "#2563EB" }}>{publishedContent.filter(p => p.contentType === "Summary").length}</div><div className="stat-label">Summaries</div></div>
-          <div className="stat-card" style={{ background: "white", borderRadius: 24, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "#EA580C" }}>{publishedContent.filter(p => p.contentType === "Quiz").length}</div><div className="stat-label">Quizzes</div></div>
-          <div className="stat-card" style={{ background: "white", borderRadius: 24, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "#7C3AED" }}>{publishedContent.filter(p => p.contentType === "Question Answer Bank").length}</div><div className="stat-label">Q-A Banks</div></div>
+          <div className="stat-card" style={{ background: "var(--card-bg)", borderRadius: 24, border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "var(--blue)" }}>{publishedContent.length}</div><div className="stat-label">Total Assets</div></div>
+          <div className="stat-card" style={{ background: "var(--card-bg)", borderRadius: 24, border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "var(--blue)" }}>{publishedContent.filter(p => p.contentType === "Summary").length}</div><div className="stat-label">Summaries</div></div>
+          <div className="stat-card" style={{ background: "var(--card-bg)", borderRadius: 24, border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "var(--orange)" }}>{publishedContent.filter(p => p.contentType === "Quiz").length}</div><div className="stat-label">Quizzes</div></div>
+          <div className="stat-card" style={{ background: "var(--card-bg)", borderRadius: 24, border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}><div className="stat-value" style={{ color: "var(--purple)" }}>{publishedContent.filter(p => p.contentType === "Question Answer Bank").length}</div><div className="stat-label">Q-A Banks</div></div>
         </div>
 
         {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 32, flexWrap: "wrap", background: "white", padding: 8, borderRadius: 20, width: "fit-content", boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 32, flexWrap: "wrap", background: "var(--card-bg)", padding: 8, borderRadius: 20, width: "fit-content", boxShadow: "0 4px 15px rgba(0,0,0,0.02)", border: "1px solid var(--border)" }}>
           {filterOptions.map(f => (
             <button
               key={f}
@@ -539,17 +542,17 @@ function PublishedContentList() {
           {filtered.map(item => {
             const colors = typeColor[item.contentType as ContentType];
             return (
-              <div key={item.id} className="card" style={{ padding: 32, borderRadius: 32, border: "none", boxShadow: "0 10px 30px -5px rgba(0,0,0,0.04)", position: "relative" }}>
+              <div key={item.id} className="card" style={{ padding: 32, borderRadius: 32, border: "1px solid var(--border)", boxShadow: "0 10px 30px -5px rgba(0,0,0,0.04)", position: "relative" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 16, background: "var(--bg-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 16, background: "var(--bg)", color: "var(--blue)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, border: "1px solid var(--border)" }}>
                     {typeIcon[item.contentType as ContentType]}
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 900, color: colors?.text, background: colors?.bg, padding: "6px 14px", borderRadius: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     {item.contentType}
                   </span>
                 </div>
-                <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8, color: "var(--text-bold)" }}>{item.chapter}</div>
-                <div style={{ fontSize: 14, color: "var(--text-meta)", marginBottom: 4, fontWeight: 600 }}>{item.book}</div>
+                <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8, color: "var(--text-primary)" }}>{item.chapter}</div>
+                <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 4, fontWeight: 600 }}>{item.book}</div>
                 <div style={{ fontSize: 13, color: "var(--text-meta)", marginBottom: 24 }}>{item.subject} · Grade {item.grade}</div>
                 <div style={{ display: "flex", gap: 12 }}>
                   <button className="btn-outline" style={{ flex: 1, fontSize: 13, fontWeight: 700, borderRadius: 12, padding: "10px 0" }} onClick={() => setActiveItem(item)}>👁 Preview</button>
@@ -559,9 +562,9 @@ function PublishedContentList() {
             );
           })}
           {filtered.length === 0 && (
-            <div style={{ gridColumn: "1/-1", padding: 80, textAlign: "center", color: "var(--text-meta)", background: "white", borderRadius: 32 }}>
+            <div style={{ gridColumn: "1/-1", padding: 80, textAlign: "center", color: "var(--text-meta)", background: "var(--card-bg)", borderRadius: 32, border: "1px solid var(--border)" }}>
                <div style={{ fontSize: 48, marginBottom: 16 }}>🏺</div>
-               <h3 style={{ fontWeight: 800, color: "var(--text-bold)" }}>Empty Gallery</h3>
+               <h3 style={{ fontWeight: 800, color: "var(--text-primary)" }}>Empty Gallery</h3>
                <p>No content has been published yet.</p>
             </div>
           )}

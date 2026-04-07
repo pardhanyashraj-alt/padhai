@@ -74,6 +74,16 @@ export default function StudentsPage() {
             <div className="stat-label">Total Students</div>
             <span className="stat-badge green">ALL CLASSES</span>
           </div>
+          <div className="stat-card purple">
+            <div className="stat-icon purple">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="M4 5a1 1 0 01.8-1 19 19 0 0114.4 0 1 1 0 01.8 1v14a1 1 0 01-.8 1 19 19 0 00-14.4 0A1 1 0 014 19V5z" />
+              </svg>
+            </div>
+            <div className="stat-value">{classesCount.length}</div>
+            <div className="stat-label">Total Classes</div>
+            <span className="stat-badge purple">ASSIGNED</span>
+          </div>
         </div>
 
         {/* Breakdown by Class */}
@@ -83,24 +93,40 @@ export default function StudentsPage() {
             <div className="card-subtitle">Breakdown of students across all your classes</div>
           </div>
 
-          <div className="table-header-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
-            <div className="th-name">Class Name</div>
-            <div className="th-class" style={{ textAlign: "right" }}>Student Count</div>
+          <div className="table-header-row" style={{ gridTemplateColumns: "1.2fr 1fr 1fr 120px" }}>
+            <div className="th-name">Subject Name</div>
+            <div className="th-grade">Grade / Class</div>
+            <div className="th-progress">Curriculum Progress</div>
+            <div className="th-class" style={{ textAlign: "right" }}>Students</div>
           </div>
 
-          {classesCount.map((cls: any) => (
-            <div className="table-row" key={cls.class_id} style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <div className="td-name">
-                <div className="avatar" style={{ background: cls.grade_level % 2 === 0 ? "var(--blue)" : "var(--orange)" }}>
-                  {cls.subject.substring(0, 2).toUpperCase()}
+          {classesCount.map((cls: any) => {
+            const progress = cls.total_chapters > 0 ? Math.round((cls.published_chapters / cls.total_chapters) * 100) : 0;
+            return (
+              <div className="table-row" key={cls.class_id} style={{ gridTemplateColumns: "1.2fr 1fr 1fr 120px" }}>
+                <div className="td-name">
+                  <div className="avatar" style={{ background: cls.grade_level % 2 === 0 ? "var(--blue)" : "var(--orange)" }}>
+                    {cls.subject ? cls.subject.substring(0, 2).toUpperCase() : "??"}
+                  </div>
+                  <span>{cls.subject || "No Subject"}</span>
                 </div>
-                <span>{cls.subject}</span>
+                <div className="td-grade" style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  Grade {cls.grade_level} — {cls.section}
+                </div>
+                <div className="td-progress">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1, height: 6, background: "var(--track)", borderRadius: 10, overflow: "hidden" }}>
+                      <div style={{ width: `${progress}%`, height: "100%", background: "var(--blue-mid)", borderRadius: 10 }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, minWidth: 35 }}>{progress}%</span>
+                  </div>
+                </div>
+                <div className="td-class" style={{ textAlign: "right", fontWeight: 700, paddingRight: 20 }}>
+                  {cls.student_count}
+                </div>
               </div>
-              <div className="td-class" style={{ textAlign: "right", fontWeight: 700, paddingRight: 20 }}>
-                {cls.student_count} Students
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {classesCount.length === 0 && (
             <div className="p-20 text-center text-slate-400">No classes assigned to you yet.</div>

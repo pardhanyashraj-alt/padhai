@@ -32,6 +32,11 @@ interface School {
   is_active: boolean;
   created_at: string;
   stats?: SchoolStats;
+  admin?: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  };
 }
 
 // The detail endpoint returns a flat object:
@@ -304,12 +309,12 @@ export default function SchoolsPage() {
 
   // ── Toggle status ────────────────────────────────────────────────────────────
 
-  const toggleStatus = async (schoolId: string, currentStatus: boolean) => {
-    if (!currentStatus) { alert("Reactivation must be done by a system administrator manually."); return; }
+  const deactivateSchool = async (schoolId: string) => {
     if (!window.confirm("Are you sure you want to deactivate this school? This will also deactivate all its users.")) return;
     try {
       const res = await apiFetch(`/sudo/schools/${schoolId}/deactivate`, { method: "POST" });
-      if (res.ok) { fetchSchools(); setDetailModal(null); }
+      if (res.ok) { await fetchSchools(); setDetailModal(null); }
+      else { const e = await res.json(); alert(e.detail || "Failed to deactivate school."); }
     } catch { alert("Server error. Please try again."); }
   };
 
@@ -701,8 +706,10 @@ export default function SchoolsPage() {
 
             <div className="modal-footer">
               {ds.is_active && (
-                <button className="btn-outline" style={{ color: "var(--red)", borderColor: "var(--red)" }}
-                  onClick={() => toggleStatus(ds.school_id, ds.is_active)}>
+                <button
+                  className="btn-outline"
+                  style={{ color: "var(--red)", borderColor: "var(--red)" }}
+                  onClick={() => deactivateSchool(ds.school_id)}>
                   ⏸ Deactivate School
                 </button>
               )}
@@ -763,30 +770,36 @@ export default function SchoolsPage() {
                       Loading schools...
                     </td>
                   </tr>
-                ) : filtered.length > 0 ? filtered.map(s => (
-                  <tr key={s.school_id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                ) : filtered.length > 0 ? filtered.map((school) => {
+                  console.log("School data in map:", school);
+                  
+                  // Handle potential field variations safely
+                  const adminEmail = school.admin?.email || school.admin_email || (school as any).email || "N/A";
+                  
+                  return (
+                  <tr key={school.school_id} style={{ borderBottom: "1px solid #F1F5F9" }}>
                     <td style={{ padding: "16px 20px" }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{s.school_name}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-meta)" }}>{s.city}, {s.state} · {s.board}</div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{school.school_name}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-meta)" }}>{school.city}, {school.state} · {school.board}</div>
                     </td>
-                    <td style={{ padding: "16px 20px", fontSize: 13 }}>{s.admin_email}</td>
+                    <td style={{ padding: "16px 20px", fontSize: 13 }}>{adminEmail}</td>
                     <td style={{ padding: "16px 20px" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", background: "#DBEAFE", padding: "4px 8px", borderRadius: 6 }}>{s.plan}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", background: "#DBEAFE", padding: "4px 8px", borderRadius: 6 }}>{school.plan}</span>
                     </td>
                     <td style={{ padding: "16px 20px", fontWeight: 700 }}>
-                      {(s.stats?.students_enrolled ?? 0).toLocaleString()}
+                      {(school.stats?.students_enrolled ?? 0).toLocaleString()}
                     </td>
                     <td style={{ padding: "16px 20px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.is_active ? "var(--green)" : "var(--red)" }} />
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{s.is_active ? "Active" : "Inactive"}</span>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: school.is_active ? "var(--green)" : "var(--red)" }} />
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{school.is_active ? "Active" : "Inactive"}</span>
                       </div>
                     </td>
                     <td style={{ padding: "16px 20px" }}>
-                      <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => handleDetailView(s)}>Details</button>
+                      <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => handleDetailView(school)}>Details</button>
                     </td>
                   </tr>
-                )) : (
+                )}) : (
                   <tr>
                     <td colSpan={6} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
                       No schools found matching your search.

@@ -229,7 +229,7 @@ export default function StudentDashboard() {
                 <div className="card-title">Enrolled Classes</div>
                 <div className="card-subtitle">Your active courses</div>
               </div>
-              <Link href="/student/classes" className="btn-outline">All Classes</Link>
+              <Link href="/student/enrolled" className="btn-outline">All Classes</Link>
             </div>
 
             {dashboardData.teachers.map((teacher, index) => {
@@ -244,14 +244,13 @@ export default function StudentDashboard() {
                     <div className="class-name">{teacher.subject}</div>
                     <div className="class-meta">{teacher.first_name} {teacher.last_name} {teacher.is_classroom_teacher ? '· Classroom Teacher' : ''}</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div className="progress-section" style={{ minWidth: '100px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+                    <div className="progress-section" style={{ minWidth: '120px' }}>
                       <div className="progress-label">PROGRESS <span className="progress-pct">75%</span></div>
                       <div className="progress-bar">
                         <div className="progress-fill fill-blue" style={{ width: "75%" }}></div>
                       </div>
                     </div>
-                    <Link href={`/student/classes/${dashboardData.class.class_id}`} className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none' }}>Open</Link>
                   </div>
                 </div>
               );

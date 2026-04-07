@@ -36,6 +36,7 @@ export default function AdminManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "revoked">("all");
   const [showDetailModal, setShowDetailModal] = useState<Admin | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchAdmins = async () => {
     setLoading(true);
@@ -90,6 +91,35 @@ export default function AdminManagement() {
       }
     } catch (err) {
       alert("Server error. Please try again.");
+    }
+  };
+
+  const handleReactivate = async (admin: Admin) => {
+    if (!admin.school) {
+      alert("Cannot reactivate an admin without an associated school.");
+      return;
+    }
+    const confirmed = window.confirm(`Reactivate ${admin.first_name}'s school (${admin.school.school_name})? All associated users will regain access.`);
+    if (!confirmed) return;
+
+    setTogglingId(admin.admin_id);
+    try {
+      const res = await apiFetch(`/sudo/schools/${admin.school.school_id}/activate`, { method: "POST" });
+      if (res.ok) {
+        setShowDetailModal(null);
+        await fetchAdmins();
+      } else {
+        const err = await res.json();
+        let errorMsg = "Failed to reactivate.";
+        if (typeof err.detail === 'string') errorMsg = err.detail;
+        else if (Array.isArray(err.detail)) errorMsg = err.detail[0]?.msg || JSON.stringify(err.detail);
+        else if (err.detail) errorMsg = JSON.stringify(err.detail);
+        alert(errorMsg);
+      }
+    } catch {
+      alert("Server error. Please try again.");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -153,9 +183,21 @@ export default function AdminManagement() {
             </div>
             <div className="modal-footer">
               <button className="btn-outline" style={{ border: 'none' }} onClick={() => setShowDetailModal(null)}>Close</button>
-              {(showDetailModal.is_active && showDetailModal.school.is_active) && (
-                <button className="btn-primary" style={{ background: 'var(--red)' }} onClick={() => toggleAccess(showDetailModal)}>
+              {(showDetailModal.is_active && showDetailModal.school.is_active) ? (
+                <button
+                  className="btn-primary"
+                  style={{ background: 'var(--red)', opacity: togglingId === showDetailModal.admin_id ? 0.6 : 1 }}
+                  disabled={togglingId === showDetailModal.admin_id}
+                  onClick={() => handleRevoke(showDetailModal)}>
                   🚫 Revoke Access
+                </button>
+              ) : (
+                <button
+                  className="btn-primary"
+                  style={{ background: 'var(--green-dark)', boxShadow: '0 4px 12px rgba(22,163,74,0.25)', opacity: togglingId === showDetailModal.admin_id ? 0.6 : 1 }}
+                  disabled={togglingId === showDetailModal.admin_id}
+                  onClick={() => handleReactivate(showDetailModal)}>
+                  {togglingId === showDetailModal.admin_id ? 'Reactivating…' : '▶ Reactivate'}
                 </button>
               )}
             </div>
@@ -247,10 +289,31 @@ export default function AdminManagement() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         <button className="btn-outline" style={{ padding: '5px 8px', fontSize: '11px' }} onClick={() => setShowDetailModal(a)}>View</button>
-                        {a.is_active && (
-                          <button className="btn-outline" style={{ padding: '5px 8px', fontSize: '11px', color: 'var(--red)', borderColor: 'var(--red)' }} onClick={() => handleRevoke(a)}>Revoke</button>
+                        {(a.is_active && a.school?.is_active) ? (
+                          <button
+                            className="btn-outline"
+                            style={{ padding: '5px 8px', fontSize: '11px', color: 'var(--red)', borderColor: 'var(--red)', opacity: togglingId === a.admin_id ? 0.6 : 1 }}
+                            disabled={togglingId === a.admin_id}
+                            onClick={() => handleRevoke(a)}>
+                            🚫 Revoke
+                          </button>
+                        ) : (
+                          <button
+                            style={{
+                              padding: '5px 10px', fontSize: '11px', fontWeight: 700,
+                              background: 'var(--green-dark)', color: 'white',
+                              border: 'none', borderRadius: '8px',
+                              cursor: togglingId === a.admin_id ? 'not-allowed' : 'pointer',
+                              opacity: togglingId === a.admin_id ? 0.6 : 1,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              transition: 'all 0.2s',
+                            }}
+                            disabled={togglingId === a.admin_id}
+                            onClick={() => handleReactivate(a)}>
+                            {togglingId === a.admin_id ? '…' : '▶ Reactivate'}
+                          </button>
                         )}
                       </div>
                     </td>

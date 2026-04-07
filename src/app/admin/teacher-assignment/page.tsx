@@ -33,6 +33,7 @@ interface TeacherAssignment {
   subject: string;
   teacher_id: string;
   academic_year: string;
+  is_classroom_teacher?: boolean;
 }
 
 const emptyForm: Omit<TeacherAssignment, "id"> = {
@@ -41,6 +42,7 @@ const emptyForm: Omit<TeacherAssignment, "id"> = {
   subject: "",
   teacher_id: "",
   academic_year: "",
+  is_classroom_teacher: false,
 };
 
 function normalizeSubject(s: string): string {
@@ -105,6 +107,7 @@ export default function TeacherAssignmentPage() {
               subject: t.subject,
               teacher_id: t.teacher_id,
               academic_year: currentAcademicYear,
+              is_classroom_teacher: t.is_classroom_teacher,
             }))
           );
         }
@@ -126,6 +129,7 @@ export default function TeacherAssignmentPage() {
                     subject: t.subject,
                     teacher_id: t.teacher_id,
                     academic_year: currentAcademicYear,
+                    is_classroom_teacher: t.is_classroom_teacher,
                   }))
                 );
               }
@@ -243,6 +247,7 @@ export default function TeacherAssignmentPage() {
       subject: row.subject,
       teacher_id: row.teacher_id,
       academic_year: row.academic_year,
+      is_classroom_teacher: row.is_classroom_teacher || false,
     });
     const teacher = teachers.find((t) => String(t.teacher_id) === row.teacher_id);
     setTeacherFilter(teacher ? `${teacher.first_name} ${teacher.last_name}` : "");
@@ -290,7 +295,7 @@ export default function TeacherAssignmentPage() {
         body: JSON.stringify({
           teacher_id: payload.teacher_id,
           subject: payload.subject,
-          is_classroom_teacher: false,
+          is_classroom_teacher: payload.is_classroom_teacher || false,
         }),
       });
 
@@ -398,7 +403,12 @@ export default function TeacherAssignmentPage() {
                       <td style={{ padding: "14px 20px", fontWeight: 600 }}>{className}</td>
                       <td style={{ padding: "14px 20px" }}>{r.section}</td>
                       <td style={{ padding: "14px 20px" }}>{r.subject}</td>
-                      <td style={{ padding: "14px 20px" }}>{teacherName}</td>
+                      <td style={{ padding: "14px 20px" }}>
+                        {teacherName}
+                        {r.is_classroom_teacher && (
+                          <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "var(--purple-dark)", background: "var(--purple-light)", padding: "2px 6px", borderRadius: 4 }}>CLASS TEACHER</span>
+                        )}
+                      </td>
                       <td style={{ padding: "14px 20px", color: "var(--text-secondary)", fontSize: 13 }}>{r.academic_year}</td>
                       <td style={{ padding: "14px 20px" }}>
                         <div style={{ display: "flex", gap: 6 }}>
@@ -433,7 +443,7 @@ export default function TeacherAssignmentPage() {
 
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="card-title">{editingId ? "Edit assignment" : "Assign teacher"}</div>
               <button type="button" className="icon-btn" aria-label="Close" onClick={closeModal}>
@@ -492,13 +502,19 @@ export default function TeacherAssignmentPage() {
                       )}
                     </select>
                   ) : (
-                    <input
-                      className="form-input"
+                    <select
+                      className="form-input filter-select"
                       required
-                      placeholder="Enter subject name"
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                    />
+                    >
+                      <option value="">Select subject</option>
+                      {["Mathematics", "Science", "English", "History", "Physics", "Chemistry", "Biology", "Geography", "Computer Science", "Environmental Science", "Economics", "Accountancy", "Business Studies", "Physical Education", "Art", "Music", "Hindi", "French"].map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </div>
                 <div className="form-group" style={{ position: "relative" }}>
@@ -572,6 +588,17 @@ export default function TeacherAssignmentPage() {
                   <p className="card-subtitle" style={{ marginTop: 6, fontSize: 12 }}>
                     Leave blank to use current year ({currentAcademicYear}).
                   </p>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, padding: "14px 16px", background: "#F8FAFC", borderRadius: 10, border: "1px solid var(--border)", cursor: "pointer" }}
+                  onClick={() => setForm(prev => ({ ...prev, is_classroom_teacher: !prev.is_classroom_teacher }))}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${form.is_classroom_teacher ? "var(--purple)" : "var(--border)"}`, background: form.is_classroom_teacher ? "var(--purple)" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s" }}>
+                    {form.is_classroom_teacher && <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>Set as Classroom Teacher</div>
+                    <div style={{ fontSize: 11, color: "var(--text-meta)" }}>This teacher will be the primary responsible teacher for the class</div>
+                  </div>
                 </div>
                 {formError && (
                   <p style={{ color: "var(--red)", fontSize: 13, fontWeight: 600 }}>{formError}</p>

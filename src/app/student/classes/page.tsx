@@ -21,6 +21,7 @@ interface SubjectInfo {
 export default function MyClasses() {
   const [studentClass, setStudentClass] = useState<StudentClass | null>(null);
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function MyClasses() {
             const subjectsData: SubjectInfo = await subjectsRes.json();
             setSubjects(subjectsData.subjects);
           }
+          setTeachers(dashboardData.teachers || []);
         }
       } catch (err) {
         console.error('Error loading class data:', err);
@@ -79,7 +81,7 @@ export default function MyClasses() {
         <div className="topbar">
           <div className="topbar-left">
             <div className="greeting">Study hard 👋</div>
-            <h1>My Class</h1>
+            <h1>Published Content</h1>
           </div>
           <div className="topbar-right">
             <div className="search-box">
@@ -147,6 +149,7 @@ export default function MyClasses() {
               const colors = ['var(--blue)', 'var(--orange)', 'var(--green)', 'var(--purple)', 'var(--red)'];
               const color = colors[index % colors.length];
               const initials = subject.substring(0, 2).toUpperCase();
+              const teacher = teachers.find(t => t.subject.toLowerCase() === subject.toLowerCase());
 
               return (
                 <div className="class-row" key={subject}>
@@ -155,7 +158,9 @@ export default function MyClasses() {
                   </div>
                   <div className="class-info">
                     <div className="class-name">{subject}</div>
-                    <div className="class-meta">Grade {studentClass.grade_level} · Section {studentClass.section}</div>
+                    <div className="class-meta">
+                      {teacher ? `${teacher.first_name} ${teacher.last_name}${teacher.is_classroom_teacher ? ' (Class Teacher)' : ''}` : `Grade ${studentClass.grade_level} · Section ${studentClass.section}`}
+                    </div>
                   </div>
                   <Link href={`/student/classes/${studentClass.class_id}?subject=${encodeURIComponent(subject)}`} className="btn-outline" style={{ padding: '6px 12px', textDecoration: 'none' }}>
                     View Content

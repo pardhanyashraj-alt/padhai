@@ -28,7 +28,7 @@ interface BookDetail extends BookListItem {
 // ─── Filter constants ────────────────────────────────────────────────────────
 
 const BOARDS = ["All", "CBSE", "ICSE", "State Board"];
-const GRADES = ["All", 8, 9, 10, 11, 12] as const;
+const GRADES = ["All", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 const SUBJECTS = ["All", "Mathematics", "Science", "English", "History", "Physics", "Chemistry", "Biology", "Geography", "Computer Science"];
 
 export default function ContentPage() {
@@ -209,7 +209,14 @@ export default function ContentPage() {
 
   const renderSummary = (summary?: Record<string, any>) => {
     if (!summary) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No summary available.</div>;
-    // Backend returns summary as a JSON object — render it in a readable way
+    
+    const safeText = (v: any): string => {
+      if (!v) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "object") return v.text || v.content || v.summary || v.description || JSON.stringify(v);
+      return String(v);
+    };
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {Object.entries(summary).map(([key, val]) => (
@@ -220,11 +227,11 @@ export default function ContentPage() {
             {Array.isArray(val) ? (
               <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
                 {val.map((item: any, i: number) => (
-                  <li key={i} style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{String(item)}</li>
+                  <li key={i} style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{safeText(item)}</li>
                 ))}
               </ul>
             ) : (
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>{String(val)}</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>{safeText(val)}</div>
             )}
           </div>
         ))}
@@ -232,26 +239,52 @@ export default function ContentPage() {
     );
   };
 
-  const renderQABank = (qa_bank?: Record<string, any>) => {
+  const renderQABank = (qa_bank?: any) => {
     if (!qa_bank) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
-    const questions: any[] = qa_bank.questions || qa_bank.qa_pairs || Object.values(qa_bank)[0] || [];
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return <div style={{ fontSize: 13, color: "var(--text-meta)" }}>Q&A data is in an unexpected format.</div>;
+    
+    let questions: any[] = [];
+    try {
+      let data = qa_bank;
+      if (typeof data === "string") data = JSON.parse(data);
+      
+      if (Array.isArray(data)) questions = data;
+      else if (data?.questions) questions = data.questions;
+      else if (data?.qa_pairs) questions = data.qa_pairs;
+      else if (data?.data?.questions) questions = data.data.questions;
+      else if (typeof data === "object") questions = (Object.values(data)[0] as any[]) || [];
+    } catch (e) {
+      console.error("Failed to parse QA:", e, qa_bank);
     }
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
+    }
+    
+    const safeText = (v: any): string => {
+      if (!v) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "object") return v.text || v.content || JSON.stringify(v);
+      return String(v);
+    };
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {questions.slice(0, 5).map((item: any, i: number) => (
-          <div key={i} style={{ padding: 16, background: "#F8FAFC", borderRadius: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#1E40AF", marginBottom: 6 }}>
-              Q{i + 1}: {typeof item === "string" ? item : (item.question || item.q || JSON.stringify(item))}
-            </div>
-            {typeof item === "object" && (item.answer || item.a) && (
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                {item.answer || item.a}
+        {questions.slice(0, 5).map((item: any, i: number) => {
+          const qText = typeof item === "string" ? item : (item?.question || item?.q || JSON.stringify(item));
+          const aText = typeof item === "object" && item ? (item.answer || item.a) : null;
+          return (
+            <div key={i} style={{ padding: 16, background: "#F8FAFC", borderRadius: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#1E40AF", marginBottom: 6 }}>
+                Q{i + 1}: {safeText(qText)}
               </div>
-            )}
-          </div>
-        ))}
+              {aText && (
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                  {safeText(aText)}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {questions.length > 5 && (
           <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-meta)", padding: 8 }}>
             …and {questions.length - 5} more Q&A pairs
@@ -261,25 +294,47 @@ export default function ContentPage() {
     );
   };
 
-  const renderQuiz = (quiz?: Record<string, any>) => {
+  const renderQuiz = (quiz?: any) => {
     if (!quiz) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No quiz available.</div>;
-    const mcqs: any[] = quiz.mcqs || quiz.questions || Object.values(quiz)[0] || [];
-    if (!Array.isArray(mcqs) || mcqs.length === 0) {
-      return <div style={{ fontSize: 13, color: "var(--text-meta)" }}>Quiz data is in an unexpected format.</div>;
+    
+    let mcqs: any[] = [];
+    try {
+      let data = quiz;
+      if (typeof data === "string") data = JSON.parse(data);
+      
+      if (Array.isArray(data)) mcqs = data;
+      else if (data?.mcqs) mcqs = data.mcqs;
+      else if (data?.questions) mcqs = data.questions;
+      else if (data?.data?.questions) mcqs = data.data.questions;
+      else if (typeof data === "object") mcqs = (Object.values(data)[0] as any[]) || [];
+    } catch (e) {
+      console.error("Failed to parse Quiz:", e, quiz);
     }
+
+    if (!Array.isArray(mcqs) || mcqs.length === 0) {
+      return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No quiz available.</div>;
+    }
+    
+    const safeText = (v: any): string => {
+      if (!v) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "object") return v.text || v.content || JSON.stringify(v);
+      return String(v);
+    };
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {mcqs.slice(0, 3).map((item: any, i: number) => {
-          const question = typeof item === "string" ? item : (item.question || item.q || "");
-          const options: string[] = item.options || item.choices || [];
-          const correctIdx: number = typeof item.correct_answer === "number" ? item.correct_answer
-            : typeof item.correct === "number" ? item.correct : -1;
+          const question = typeof item === "string" ? item : (item?.question || item?.q || "");
+          const options: any[] = typeof item === "object" && item ? (item.options || item.choices || []) : [];
+          const correctIdx: number = typeof item === "object" && item ? (typeof item.correct_answer === "number" ? item.correct_answer
+            : typeof item.correct === "number" ? item.correct : -1) : -1;
           return (
             <div key={i} style={{ padding: 16, background: "#F8FAFC", borderRadius: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Q{i + 1}: {question}</div>
-              {options.length > 0 ? (
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Q{i + 1}: {safeText(question)}</div>
+              {Array.isArray(options) && options.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {options.map((opt: string, j: number) => (
+                  {options.map((opt: any, j: number) => (
                     <div key={j} style={{
                       padding: "8px 12px", borderRadius: 8, fontSize: 13, border: "1px solid",
                       borderColor: j === correctIdx ? "var(--green-dark)" : "var(--border)",
@@ -287,7 +342,7 @@ export default function ContentPage() {
                       fontWeight: j === correctIdx ? 600 : 400,
                       color: j === correctIdx ? "var(--green-dark)" : "var(--text-secondary)",
                     }}>
-                      {String.fromCharCode(65 + j)}. {opt} {j === correctIdx ? " ✓" : ""}
+                      {String.fromCharCode(65 + j)}. {safeText(opt)} {j === correctIdx ? " ✓" : ""}
                     </div>
                   ))}
                 </div>

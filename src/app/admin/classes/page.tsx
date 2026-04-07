@@ -137,7 +137,7 @@ export default function ClassesPage() {
 
   const validateCreate = () => {
     const e: Record<string, string> = {};
-    if (!createForm.grade_level || isNaN(Number(createForm.grade_level))) e.grade_level = "Valid grade level required";
+    if (!createForm.grade_level) e.grade_level = "Valid grade level required";
     if (!createForm.section.trim()) e.section = "Section is required";
     setCreateErrors(e);
     return Object.keys(e).length === 0;
@@ -151,7 +151,7 @@ export default function ClassesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          grade_level: parseInt(createForm.grade_level),
+          grade_level: isNaN(Number(createForm.grade_level)) ? createForm.grade_level : parseInt(createForm.grade_level),
           section: createForm.section.toUpperCase(),
         }),
       });
@@ -275,8 +275,8 @@ export default function ClassesPage() {
                     onChange={e => setCreateForm({ ...createForm, grade_level: e.target.value })}
                     style={{ borderColor: createErrors.grade_level ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
-                      <option key={g} value={g}>Grade {g}</option>
+                    {["Pre-KG", "LKG", "UKG", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(g => (
+                      <option key={g} value={g}>{typeof g === 'number' ? `Grade ${g}` : g}</option>
                     ))}
                   </select>
                   {createErrors.grade_level && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{createErrors.grade_level}</div>}
@@ -287,7 +287,7 @@ export default function ClassesPage() {
                     onChange={e => setCreateForm({ ...createForm, section: e.target.value })}
                     style={{ borderColor: createErrors.section ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {["A", "B", "C", "D", "E"].map(s => <option key={s} value={s}>{s}</option>)}
+                    {["A", "B", "C", "D", "E", "F"].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {createErrors.section && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{createErrors.section}</div>}
                 </div>
@@ -306,7 +306,7 @@ export default function ClassesPage() {
       {/* ── ASSIGN TEACHER MODAL ── */}
       {showAssign && detail && (
         <div className="modal-overlay" onClick={() => setShowAssign(false)}>
-          <div className="modal-content" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div>
                 <div className="card-title">Assign Teacher</div>
@@ -340,9 +340,14 @@ export default function ClassesPage() {
               </div>
               <div className="form-group" style={{ marginTop: 14 }}>
                 <label className="form-label">Subject *</label>
-                <input className="form-input" placeholder="e.g. Mathematics" value={assignForm.subject}
+                <select className="form-input" value={assignForm.subject}
                   onChange={e => setAssignForm({ ...assignForm, subject: e.target.value })}
-                  style={{ borderColor: assignErrors.subject ? "#EF4444" : "" }} />
+                  style={{ borderColor: assignErrors.subject ? "#EF4444" : "" }}>
+                  <option value="">Select a subject</option>
+                  {["Mathematics", "Science", "English", "History", "Physics", "Chemistry", "Biology", "Geography", "Computer Science", "Environmental Science", "Economics", "Accountancy", "Business Studies", "Physical Education", "Art", "Music", "Hindi", "French"].map(subj => (
+                    <option key={subj} value={subj}>{subj}</option>
+                  ))}
+                </select>
                 {assignErrors.subject && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{assignErrors.subject}</div>}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, padding: "14px 16px", background: "#F8FAFC", borderRadius: 10, border: "1px solid var(--border)", cursor: "pointer" }}
@@ -385,10 +390,6 @@ export default function ClassesPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-outline" style={{ fontSize: 11, padding: "5px 10px" }}
-                      onClick={() => setShowAssign(true)}>
-                      + Assign Teacher
-                    </button>
                     <button className="icon-btn" onClick={() => { setDetail(null); setDetailStudents([]); }}>
                       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -416,13 +417,13 @@ export default function ClassesPage() {
                         {detail.teachers.map((t, i) => {
                           const teacher = teachers.find(tc => tc.teacher_id === t.teacher_id);
                           return (
-                            <div key={i} style={{ padding: "14px 16px", background: "#F8FAFC", borderRadius: 12, border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div key={i} style={{ padding: "14px 16px", background: "var(--bg)", borderRadius: 12, border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                                 <div className="avatar" style={{ width: 36, height: 36, fontSize: 13, background: "var(--purple-light)", color: "var(--purple-dark)", flexShrink: 0 }}>
                                   {teacher ? `${teacher.first_name[0]}${teacher.last_name[0]}` : "T"}
                                 </div>
                                 <div>
-                                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
                                     {teacher ? `${teacher.first_name} ${teacher.last_name}` : t.teacher_id.slice(0, 8) + "…"}
                                   </div>
                                   <div style={{ fontSize: 12, color: "var(--text-meta)" }}>{t.subject}</div>
@@ -440,9 +441,6 @@ export default function ClassesPage() {
                     ) : (
                       <div style={{ padding: "40px", textAlign: "center", color: "var(--text-meta)", fontSize: 14 }}>
                         No teachers assigned yet.
-                        <button className="btn-outline" style={{ display: "block", margin: "12px auto 0", fontSize: 12 }} onClick={() => setShowAssign(true)}>
-                          + Assign First Teacher
-                        </button>
                       </div>
                     )
                   )}

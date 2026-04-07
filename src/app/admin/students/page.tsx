@@ -7,7 +7,7 @@ import { apiFetch, apiFormData } from "../../lib/api";
 // ─── Types matching GET /admin/students response ──────────────────────────────
 
 interface Enrollment {
-  grade_level: number;
+  grade_level: number | string;
   section: string;
   admission_number: number;
   parent_name: string;
@@ -32,7 +32,7 @@ interface Student {
 
 interface SchoolClass {
   class_id: string;
-  grade_level: number;
+  grade_level: number | string;
   section: string;
 }
 
@@ -132,7 +132,15 @@ export default function StudentsPage() {
 
   const uniqueGrades = Array.from(
     new Set(students.map(s => s.enrollment?.grade_level).filter(Boolean))
-  ).sort() as number[];
+  ).sort((a, b) => {
+    const order = ["Pre-KG", "LKG", "UKG"];
+    const ia = order.indexOf(a as any);
+    const ib = order.indexOf(b as any);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return (a as number) - (b as number);
+  }) as (number | string)[];
 
   const filtered = students.filter(s => {
     const name = `${s.first_name} ${s.last_name} ${s.email} ${s.enrollment?.admission_number ?? ""}`.toLowerCase();
@@ -210,7 +218,7 @@ export default function StudentsPage() {
         email: form.email,
         first_name: form.first_name,
         last_name: form.last_name,
-        class_grade: parseInt(form.class_grade),
+        class_grade: isNaN(Number(form.class_grade)) ? form.class_grade : parseInt(form.class_grade),
         section: form.section.toUpperCase(),
         admission_number: parseInt(form.admission_number),
       };
@@ -717,10 +725,9 @@ export default function StudentsPage() {
                     onChange={e => setForm({ ...form, class_grade: e.target.value })}
                     style={{ borderColor: formErrors.class_grade ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {(classes.length > 0
-                      ? Array.from(new Set(classes.map(c => c.grade_level))).sort((a, b) => a - b)
-                      : Array.from({ length: 12 }, (_, i) => i + 1)
-                    ).map(g => <option key={g} value={g}>Grade {g}</option>)}
+                    {["Pre-KG", "LKG", "UKG", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(g => (
+                      <option key={g} value={g}>{typeof g === 'number' ? `Grade ${g}` : g}</option>
+                    ))}
                   </select>
                   {formErrors.class_grade && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{formErrors.class_grade}</div>}
                 </div>
@@ -730,10 +737,11 @@ export default function StudentsPage() {
                     onChange={e => setForm({ ...form, section: e.target.value })}
                     style={{ borderColor: formErrors.section ? "#EF4444" : "" }}>
                     <option value="">Select</option>
-                    {(form.class_grade
-                      ? classes.filter(c => c.grade_level === parseInt(form.class_grade)).map(c => c.section)
-                      : ["A", "B", "C", "D"]
-                    ).map(s => <option key={s} value={s}>{s}</option>)}
+                    {(() => {
+                      const existingSections = classes.filter(c => String(c.grade_level) === String(form.class_grade)).map(c => c.section);
+                      const finalSections = existingSections.length > 0 ? existingSections : ["A", "B", "C", "D", "E", "F"];
+                      return finalSections.map(s => <option key={s} value={s}>{s}</option>);
+                    })()}
                   </select>
                   {formErrors.section && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{formErrors.section}</div>}
                 </div>
@@ -986,7 +994,7 @@ export default function StudentsPage() {
                     </td>
                     <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--text-meta)" }}>{s.email}</td>
                     <td style={{ padding: "14px 20px", fontSize: 13, fontWeight: 600 }}>
-                      {s.enrollment ? `${s.enrollment.grade_level}${s.enrollment.section}` : "—"}
+                      {s.enrollment ? `${typeof s.enrollment.grade_level === 'number' ? 'Grade ' : ''}${s.enrollment.grade_level}${s.enrollment.section}` : "—"}
                     </td>
                     <td style={{ padding: "14px 20px", fontSize: 13 }}>
                       {s.enrollment?.admission_number ?? "—"}

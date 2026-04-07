@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
 
 interface StudentSidebarProps {
-  activePage: "dashboard" | "classes" | "assignments" | "schedule" | "history" | "messages" | "complaints" | "settings" | "institution";
+  activePage: "dashboard" | "classes" | "enrolled" | "assignments" | "schedule" | "history" | "messages" | "complaints" | "settings" | "institution";
 }
 
 export default function StudentSidebar({ activePage }: StudentSidebarProps) {
@@ -87,6 +87,15 @@ export default function StudentSidebar({ activePage }: StudentSidebarProps) {
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
               <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+            </svg>
+            Published Content
+          </Link>
+          <Link href="/student/enrolled" className={`nav-item${activePage === "enrolled" ? " active student-active" : ""}`} onClick={closeMobileSidebar}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
             </svg>
             My Classes
           </Link>

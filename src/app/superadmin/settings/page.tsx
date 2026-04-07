@@ -33,10 +33,10 @@ export default function SuperAdminSettings() {
     try {
       const res = await apiFetch('/auth/change-password', {
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           old_password: passwords.current,
           new_password: passwords.new
-        })
+        }
       });
 
       if (res.ok) {
@@ -81,11 +81,11 @@ export default function SuperAdminSettings() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
                 <div className="form-group">
                   <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Email Address</label>
-                  <input className="form-input" style={{ width: '100%', background: '#F8FAFC' }} value={user?.email || ''} readOnly />
+                  <input className="form-input" style={{ width: '100%', background: 'var(--bg)' }} value={user?.email || ''} readOnly />
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Phone Number</label>
-                  <input className="form-input" style={{ width: '100%', background: '#F8FAFC' }} value={user?.phone_number || ''} readOnly />
+                  <input className="form-input" style={{ width: '100%', background: 'var(--bg)' }} value={user?.phone_number || ''} readOnly />
                 </div>
               </div>
               <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--text-meta)' }}>

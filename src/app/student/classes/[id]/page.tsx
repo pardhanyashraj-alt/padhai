@@ -366,7 +366,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Section Summary</div>
             {Object.entries(paragraphSummary).map(([key, value]) => (
-              <div key={key} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "#F8FAFC" }}>
+              <div key={key} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)", marginBottom: 4 }}>{key}</div>
                 <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{String(value)}</div>
               </div>
@@ -397,7 +397,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
         {exercises.map((section: any, idx: number) => {
           const sectionQuestions = section.questions || [];
           return (
-            <div key={idx} style={{ padding: 10, borderRadius: 10, background: "#fff", border: "1px solid var(--border)" }}>
+            <div key={idx} style={{ padding: 10, borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)" }}>
               <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
                 {section.section_title || `Section ${idx + 1}`}
               </div>
@@ -423,6 +423,108 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  // ─── renderPPTStructure ───────────────────────────────────────────────────────
+
+  const renderPPTStructure = (pptData: any) => {
+    if (!pptData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No PPT structure available.</div>;
+
+    const body = (pptData as any).ppt || pptData;
+    const slides = body.slides || [];
+    const heading = pptData.heading || body.heading || "";
+
+    if (!Array.isArray(slides) || slides.length === 0) {
+      return (
+        <div style={{ color: "var(--text-meta)", fontSize: 13, padding: 12, background: "var(--bg)", borderRadius: 10 }}>
+          No slides available in this deck.
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {heading && <h4 style={{ margin: 0, color: "var(--text-primary)", fontSize: 18 }}>{heading}</h4>}
+        
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
+          {slides.map((slide: any, idx: number) => (
+            <div key={idx} style={{ 
+              padding: 24, 
+              borderRadius: 16, 
+              background: "var(--card-bg)", 
+              border: "1.5px solid var(--border)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+              minHeight: 180,
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              {/* Slide numbering */}
+              <div style={{ 
+                position: "absolute", 
+                top: 14, 
+                right: 18, 
+                fontSize: 10, 
+                fontWeight: 800, 
+                color: "var(--white)", 
+                background: "var(--blue)", 
+                padding: "4px 10px", 
+                borderRadius: "99px"
+              }}>
+                SLIDE {slide.slide_number || idx + 1}
+              </div>
+
+              {/* Slide Body */}
+              <div style={{ flex: 1, marginTop: 10 }}>
+                {slide.slide_type === "title" ? (
+                  <div style={{ textAlign: "center", padding: "30px 0" }}>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: "var(--blue)", marginBottom: 8 }}>{slide.title}</h2>
+                    {slide.subtitle && <p style={{ fontSize: 18, color: "var(--text-secondary)" }}>{slide.subtitle}</p>}
+                  </div>
+                ) : (
+                  <>
+                    <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--blue)" }}></span>
+                      {slide.title}
+                    </h3>
+                    
+                    {Array.isArray(slide.bullet_points) && slide.bullet_points.length > 0 && (
+                      <ul style={{ paddingLeft: 24, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+                        {slide.bullet_points.map((pt: string, j: number) => (
+                          <li key={j} style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                            {pt}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Decorative slide type badge */}
+              <div style={{ 
+                marginTop: 20, 
+                paddingTop: 16, 
+                borderTop: "1px solid var(--border)",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--text-meta)",
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 19V5a2 2 0 012-2h10a2 2 0 012 2v14M12 7v6m-4-2h8" />
+                </svg>
+                {slide.slide_type || "Content"}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -527,7 +629,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
             return (
               <div
                 key={q.id}
-                style={{ padding: 14, borderRadius: 12, background: "#F8FAFC", border: "1px solid var(--border)" }}
+                style={{ padding: 14, borderRadius: 12, background: "var(--card-bg)", border: "1px solid var(--border)" }}
               >
                 <div style={{ fontWeight: 700, marginBottom: 10 }}>
                   Q{i + 1}: {q.questionText}
@@ -550,14 +652,15 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 8,
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          border: "1px solid",
-                          borderColor: showAsCorrect ? "#10B981" : showAsWrong ? "#EF4444" : isSelected ? "#3B82F6" : "#CBD5E1",
-                          background: showAsCorrect ? "#DCFCE7" : showAsWrong ? "#FEE2E2" : isSelected ? "#DBEAFE" : "white",
-                          color: showAsCorrect ? "#065F46" : showAsWrong ? "#991B1B" : isSelected ? "#1D4ED8" : "#1F2937",
+                          gap: 12,
+                          padding: "12px 14px",
+                          borderRadius: 12,
+                          border: "1.5px solid",
+                          borderColor: showAsCorrect ? "var(--green)" : showAsWrong ? "var(--red)" : isSelected ? "var(--blue)" : "var(--border)",
+                          background: showAsCorrect ? "var(--green-light)" : showAsWrong ? "var(--red-light, rgba(239, 68, 68, 0.12))" : isSelected ? "var(--blue-light)" : "var(--white)",
+                          color: (showAsCorrect || showAsWrong || isSelected) ? "var(--text-primary)" : "var(--text-secondary)",
                           cursor: isCompleted && !isTakingQuiz ? "default" : "pointer",
+                          transition: "all 0.15s ease",
                         }}
                       >
                         <input
@@ -715,8 +818,8 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                         cursor: "pointer",
                         padding: "8px 16px",
                         borderRadius: 8,
-                        background: activeChapterId === chapter.class_chapter_id ? "var(--blue)" : "#F1F5F9",
-                        color: activeChapterId === chapter.class_chapter_id ? "#fff" : "var(--text-primary)",
+                        background: activeChapterId === chapter.class_chapter_id ? "var(--blue)" : "var(--bg)",
+                        color: activeChapterId === chapter.class_chapter_id ? "white" : "var(--text-primary)",
                         fontWeight: 600,
                         fontSize: 13,
                       }}
@@ -765,16 +868,10 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                       {renderQABank(chapterContent?.qa_bank)}
                     </div>
                   )}
-                  {selectedContentType === "ppt_structure" && (
+                   {selectedContentType === "ppt_structure" && (
                     <div>
-                      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>PPT Structure</h3>
-                      {chapterContent?.ppt_structure ? (
-                        <pre style={{ whiteSpace: "pre-wrap", color: "var(--text-secondary)" }}>
-                          {JSON.stringify(chapterContent.ppt_structure, null, 2)}
-                        </pre>
-                      ) : (
-                        <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No PPT structure available.</div>
-                      )}
+                      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>PPT Deck Structure</h3>
+                      {renderPPTStructure(chapterContent?.ppt_structure)}
                     </div>
                   )}
                 </div>

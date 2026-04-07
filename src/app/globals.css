@@ -1716,7 +1716,7 @@ svg {
 
 .modal-footer {
     padding: 16px 24px;
-    background: #F8FAFC;
+    background: var(--bg);
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
@@ -1766,7 +1766,7 @@ svg {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: #F1F5F9;
+    background: var(--bg);
     border-radius: 8px;
     font-size: 13px;
 }
@@ -1792,7 +1792,7 @@ svg {
 .time-select-popup {
     margin-top: 12px;
     padding: 16px;
-    background: #F8FAFC;
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 12px;
     display: flex;
