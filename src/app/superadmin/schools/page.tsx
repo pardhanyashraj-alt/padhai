@@ -118,19 +118,36 @@ export default function SchoolsPage() {
   const [successToast, setSuccessToast] = useState(false);
   const certRef = useRef<HTMLInputElement>(null);
   const nocRef = useRef<HTMLInputElement>(null);
+  const [adminEmailMap, setAdminEmailMap] = useState<Record<string, string>>({});
 
   // ── Fetch list ──────────────────────────────────────────────────────────────
 
   const fetchSchools = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch("/sudo/schools");
-      if (res.ok) {
-        const data: any[] = await res.json();
+      const [schoolsRes, adminsRes] = await Promise.all([
+        apiFetch("/sudo/schools"),
+        apiFetch("/sudo/admins"),
+      ]);
+
+      if (schoolsRes.ok) {
+        const data: any[] = await schoolsRes.json();
         setSchools(data.map(s => ({ ...s, is_active: normaliseBool(s.is_active) })));
       }
+
+      if (adminsRes.ok) {
+        const adminsData = await adminsRes.json();
+        // Build a map: school_id → admin email
+        const map: Record<string, string> = {};
+        for (const admin of adminsData.admins ?? []) {
+          if (admin.school?.school_id && admin.email) {
+            map[admin.school.school_id] = admin.email;
+          }
+        }
+        setAdminEmailMap(map);
+      }
     } catch (err) {
-      console.error("Fetch schools error:", err);
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -277,7 +294,7 @@ export default function SchoolsPage() {
         // API might return { school: {...}, admin: {...} } OR flat school with nested admin { ..., admin: {...} }
         const schoolData = response.school || response;
         const adminData = response.admin;
-        
+
         // Ensure we prioritize data from the detail endpoint, falling back to list data if necessary
         setDetailModal({
           school: {
@@ -792,35 +809,36 @@ export default function SchoolsPage() {
                     </td>
                   </tr>
                 ) : filtered.length > 0 ? filtered.map((school) => {
-                  console.log("School data in map:", school);
-                  
+                  // console.log("School data in map:", school);
+
                   // Handle potential field variations safely
-                  const adminEmail = school.admin?.email || school.admin_email || (school as any).email || "N/A";
-                  
+                  const adminEmail = school.admin_email || adminEmailMap[school.school_id] || "—";
+
                   return (
-                  <tr key={school.school_id} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                    <td style={{ padding: "16px 20px" }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{school.school_name}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-meta)" }}>{school.city}, {school.state} · {school.board}</div>
-                    </td>
-                     <td style={{ padding: "16px 20px", fontSize: 13 }}>{adminEmail}</td>
-                    <td style={{ padding: "16px 20px" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", background: "#DBEAFE", padding: "4px 8px", borderRadius: 6 }}>{school.plan}</span>
-                    </td>
-                    <td style={{ padding: "16px 20px", fontWeight: 700 }}>
-                      {(school.stats?.students_enrolled ?? 0).toLocaleString()}
-                    </td>
-                    <td style={{ padding: "16px 20px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: school.is_active ? "var(--green)" : "var(--red)" }} />
-                        <span style={{ fontSize: 13, fontWeight: 500 }}>{school.is_active ? "Active" : "Inactive"}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "16px 20px" }}>
-                      <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => handleDetailView(school)}>Details</button>
-                    </td>
-                  </tr>
-                )}) : (
+                    <tr key={school.school_id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: "16px 20px" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{school.school_name}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-meta)" }}>{school.city}, {school.state} · {school.board}</div>
+                      </td>
+                      <td style={{ padding: "16px 20px", fontSize: 13 }}>{adminEmail}</td>
+                      <td style={{ padding: "16px 20px" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", background: "#DBEAFE", padding: "4px 8px", borderRadius: 6 }}>{school.plan}</span>
+                      </td>
+                      <td style={{ padding: "16px 20px", fontWeight: 700 }}>
+                        {(school.stats?.students_enrolled ?? 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: "16px 20px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: school.is_active ? "var(--green)" : "var(--red)" }} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>{school.is_active ? "Active" : "Inactive"}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "16px 20px" }}>
+                        <button className="btn-outline" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => handleDetailView(school)}>Details</button>
+                      </td>
+                    </tr>
+                  )
+                }) : (
                   <tr>
                     <td colSpan={6} style={{ padding: 60, textAlign: "center", color: "var(--text-meta)" }}>
                       No schools found matching your search.
