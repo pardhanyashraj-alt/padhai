@@ -28,6 +28,9 @@ interface School {
   state: string;
   board: string;
   admin_email: string;
+  affiliation_number?: string;
+  school_address?: string;
+  school_phone?: string;
   plan: "Basic" | "Pro" | "Enterprise" | "Trial" | "Paid";
   is_active: boolean;
   created_at: string;
@@ -269,29 +272,31 @@ export default function SchoolsPage() {
       const res = await apiFetch(`/sudo/schools/${s.school_id}/details`);
       if (res.ok) {
         const response = await res.json();
-        console.log("Fetched", response)
-        // API returns { school: {...}, admin: {...} }
-        const schoolData = response.school;
+        console.log("Fetched School Details:", response);
+
+        // API might return { school: {...}, admin: {...} } OR flat school with nested admin { ..., admin: {...} }
+        const schoolData = response.school || response;
         const adminData = response.admin;
         
+        // Ensure we prioritize data from the detail endpoint, falling back to list data if necessary
         setDetailModal({
           school: {
             school_id: schoolData?.school_id ?? s.school_id,
             school_name: schoolData?.school_name ?? s.school_name,
-            school_address: schoolData?.school_address,
+            school_address: schoolData?.school_address || s.school_address,
             city: schoolData?.city ?? s.city,
             state: schoolData?.state ?? s.state,
             board: schoolData?.board ?? s.board,
-            affiliation_number: schoolData?.affiliation_number,
-            school_phone: schoolData?.school_phone,
+            affiliation_number: schoolData?.affiliation_number || s.affiliation_number,
+            school_phone: schoolData?.school_phone || s.school_phone,
             admin_email: schoolData?.admin_email ?? s.admin_email,
             plan: schoolData?.plan ?? s.plan,
             registration_certificate_url: schoolData?.registration_certificate_url,
             noc_affiliation_url: schoolData?.noc_affiliation_url,
             is_active: normaliseBool(schoolData?.is_active ?? s.is_active),
             created_at: schoolData?.created_at ?? s.created_at,
-            // stats may be undefined — fall back to list-level stats
-            stats: schoolData?.stats ?? s.stats,
+            // Try to get fresh stats from the detail endpoint, otherwise keep list stats
+            stats: schoolData?.stats || s.stats,
           },
           admin: adminData
             ? { ...adminData, is_active: normaliseBool(adminData.is_active) }
@@ -315,6 +320,15 @@ export default function SchoolsPage() {
       const res = await apiFetch(`/sudo/schools/${schoolId}/deactivate`, { method: "POST" });
       if (res.ok) { await fetchSchools(); setDetailModal(null); }
       else { const e = await res.json(); alert(e.detail || "Failed to deactivate school."); }
+    } catch { alert("Server error. Please try again."); }
+  };
+
+  const activateSchool = async (schoolId: string) => {
+    if (!window.confirm("Reactivate this school? All associated users will regain system access.")) return;
+    try {
+      const res = await apiFetch(`/sudo/schools/${schoolId}/activate`, { method: "POST" });
+      if (res.ok) { await fetchSchools(); setDetailModal(null); }
+      else { const e = await res.json(); alert(e.detail || "Failed to activate school."); }
     } catch { alert("Server error. Please try again."); }
   };
 
@@ -705,12 +719,19 @@ export default function SchoolsPage() {
             </div>
 
             <div className="modal-footer">
-              {ds.is_active && (
+              {ds.is_active ? (
                 <button
                   className="btn-outline"
                   style={{ color: "var(--red)", borderColor: "var(--red)" }}
                   onClick={() => deactivateSchool(ds.school_id)}>
                   ⏸ Deactivate School
+                </button>
+              ) : (
+                <button
+                  className="btn-primary"
+                  style={{ background: "var(--green-dark)", boxShadow: "0 4px 12px rgba(22,163,74,0.2)" }}
+                  onClick={() => activateSchool(ds.school_id)}>
+                  ▶ Reactivate School
                 </button>
               )}
               <button className="btn-outline" onClick={() => setDetailModal(null)}>Close</button>
@@ -782,7 +803,7 @@ export default function SchoolsPage() {
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{school.school_name}</div>
                       <div style={{ fontSize: 11, color: "var(--text-meta)" }}>{school.city}, {school.state} · {school.board}</div>
                     </td>
-                    <td style={{ padding: "16px 20px", fontSize: 13 }}>{adminEmail}</td>
+                     <td style={{ padding: "16px 20px", fontSize: 13 }}>{adminEmail}</td>
                     <td style={{ padding: "16px 20px" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", background: "#DBEAFE", padding: "4px 8px", borderRadius: 6 }}>{school.plan}</span>
                     </td>
