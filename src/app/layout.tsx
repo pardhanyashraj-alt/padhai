@@ -12,9 +12,11 @@ const inter = Inter({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: "EduFlow — Teacher Dashboard",
-  description: "EduFlow Teacher Dashboard",
+export const metadata = {
+  title: {
+    default: "EduFlow",
+    template: "%s | EduFlow",
+  },
 };
 
 export default function RootLayout({

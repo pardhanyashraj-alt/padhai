@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import StudentSidebar from '../../components/StudentSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
+import { useTitle } from '../../../hooks/useTitle';
 
 interface DashboardData {
   student: {
@@ -51,6 +52,7 @@ interface DashboardData {
 }
 
 export default function StudentDashboard() {
+  useTitle("Dashboard");
   const router = useRouter();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
