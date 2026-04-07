@@ -47,7 +47,7 @@ export default function AdminManagement() {
         const data = await res.json();
         const allAdmins = data.admins as Admin[];
         setAdmins(allAdmins);
-        
+
         // Calculate stats locally based on the same logic as the UI rows
         const active = allAdmins.filter(a => a.is_active && a.school?.is_active).length;
         const total = allAdmins.length;
@@ -95,8 +95,9 @@ export default function AdminManagement() {
   };
 
   const handleReactivate = async (admin: Admin) => {
-    if (!admin.school) {
-      alert("Cannot reactivate an admin without an associated school.");
+    const schoolId = admin.school?.school_id;
+    if (!schoolId) {
+      alert("Cannot reactivate: school information is missing.");
       return;
     }
     const confirmed = window.confirm(`Reactivate ${admin.first_name}'s school (${admin.school.school_name})? All associated users will regain access.`);
@@ -104,12 +105,28 @@ export default function AdminManagement() {
 
     setTogglingId(admin.admin_id);
     try {
-      const res = await apiFetch(`/sudo/schools/${admin.school.school_id}/activate`, { method: "POST" });
+      const res = await apiFetch(`/sudo/schools/${schoolId}/activate`, { method: "POST" });
       if (res.ok) {
-        setShowDetailModal(null);
-        await fetchAdmins();
+        // Optimistically update the list in-place so UI changes immediately
+        setAdmins(prev =>
+          prev.map(a =>
+            a.admin_id === admin.admin_id
+              ? { ...a, is_active: true, school: { ...a.school, is_active: true } }
+              : a
+          )
+        );
+        // Also update the modal if it's open for this admin
+        setShowDetailModal(prev =>
+          prev?.admin_id === admin.admin_id
+            ? { ...prev, is_active: true, school: { ...prev.school, is_active: true } }
+            : prev
+        );
+        // Recalculate stats
+        setStats(prev => ({ ...prev, active: prev.active + 1, revoked: Math.max(prev.revoked - 1, 0) }));
+        // Background refresh to sync with server
+        fetchAdmins();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         let errorMsg = "Failed to reactivate.";
         if (typeof err.detail === 'string') errorMsg = err.detail;
         else if (Array.isArray(err.detail)) errorMsg = err.detail[0]?.msg || JSON.stringify(err.detail);
@@ -126,14 +143,14 @@ export default function AdminManagement() {
   const filtered = admins.filter(a => {
     const fullName = `${a.first_name} ${a.last_name}`.toLowerCase();
     const searchLower = search.toLowerCase();
-    
-    const matchesSearch = fullName.includes(searchLower) || 
+
+    const matchesSearch = fullName.includes(searchLower) ||
       a.school.school_name.toLowerCase().includes(searchLower) ||
       a.email.toLowerCase().includes(searchLower);
 
     const isActive = a.is_active && a.school?.is_active;
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && isActive) || 
+    const matchesStatus = statusFilter === "all" ||
+      (statusFilter === "active" && isActive) ||
       (statusFilter === "revoked" && !isActive);
 
     return matchesSearch && matchesStatus;
@@ -153,7 +170,7 @@ export default function AdminManagement() {
           <div className="modal-content" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="card-title">Admin Details</div>
-              <button className="icon-btn" onClick={() => setShowDetailModal(null)}><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+              <button className="icon-btn" onClick={() => setShowDetailModal(null)}><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="modal-body">
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '20px', background: '#F8FAFC', borderRadius: '14px', marginBottom: '20px' }}>
@@ -223,7 +240,7 @@ export default function AdminManagement() {
           <div className="card-header">
             <div className="table-filters">
               <div className="search-box">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                 <input type="text" placeholder="Search admins or schools…" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -231,9 +248,9 @@ export default function AdminManagement() {
                   <button key={s} onClick={() => setStatusFilter(s)} style={{
                     padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                     border: '1.5px solid', transition: 'all 0.2s',
-                    borderColor: statusFilter === s ? '#1E40AF' : 'var(--border)',
-                    background: statusFilter === s ? '#DBEAFE' : 'white',
-                    color: statusFilter === s ? '#1E40AF' : 'var(--text-secondary)',
+                    borderColor: statusFilter === s ? 'var(--blue)' : 'var(--border)',
+                    background: statusFilter === s ? 'var(--blue-light)' : 'var(--input-bg)',
+                    color: statusFilter === s ? 'var(--blue)' : 'var(--text-secondary)',
                     textTransform: 'capitalize'
                   }}>{s}</button>
                 ))}
@@ -244,7 +261,7 @@ export default function AdminManagement() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#F8FAFC', textAlign: 'left' }}>
+                <tr style={{ background: 'var(--bg)', textAlign: 'left' }}>
                   <th style={{ padding: '14px 20px', fontSize: '11px', fontWeight: 700, color: 'var(--text-meta)', textTransform: 'uppercase' }}>Admin</th>
                   <th style={{ padding: '14px 20px', fontSize: '11px', fontWeight: 700, color: 'var(--text-meta)', textTransform: 'uppercase' }}>School</th>
                   <th style={{ padding: '14px 20px', fontSize: '11px', fontWeight: 700, color: 'var(--text-meta)', textTransform: 'uppercase' }}>Plan</th>
