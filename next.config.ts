@@ -7,14 +7,7 @@ const backend = DEFAULT_BACKEND
   .replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api-backend/:path*",
-        destination: `${backend}/:path*`,
-      },
-    ];
-  },
+  /* config options here */
 };
 
 export default nextConfig;

@@ -36,6 +36,10 @@ export default function ContentPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [generatingPPT, setGeneratingPPT] = useState<string | null>(null);
+  const [pptSuccess, setPptSuccess] = useState(false);
+  const [pptMessage, setPptMessage] = useState("");
+
 
   // Filters — board needs the backend search; grade/subject can filter client-side from list
   const [boardFilter, setBoardFilter] = useState("All");
@@ -135,6 +139,36 @@ export default function ContentPage() {
       setDeleting(null);
     }
   };
+
+  // ── Generate PPT ──────────────────────────────────────────────────────────
+
+  const handleGeneratePPT = async (bookId: string) => {
+    setGeneratingPPT(bookId);
+    try {
+      const res = await apiFetch(`/books/${bookId}/generate-ppt`, {
+        method: "POST",
+        body: {
+          template: "general",
+          theme: "professional-dark",
+          language: "en",
+          export_as: "pptx"
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPptMessage(data.message || "PPT generation started.");
+        setPptSuccess(true);
+        setTimeout(() => setPptSuccess(false), 3500);
+      } else {
+        alert(data.detail || "Failed to generate PPT.");
+      }
+    } catch (err) {
+      alert("Network error. Please try again.");
+    } finally {
+      setGeneratingPPT(null);
+    }
+  };
+
 
   // ── Upload validation ─────────────────────────────────────────────────────
 
@@ -387,7 +421,14 @@ export default function ContentPage() {
         </div>
       )}
 
-      {/* ── ALL BOOKS MODAL ── */}
+      {/* PPT success toast */}
+      {pptSuccess && (
+        <div style={{ position: "fixed", bottom: 32, right: 32, zIndex: 9999, background: "#1E40AF", color: "white", padding: "14px 22px", borderRadius: 14, fontWeight: 600, fontSize: 14, boxShadow: "0 8px 30px rgba(30,64,175,0.35)", display: "flex", alignItems: "center", gap: 10 }}>
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+          {pptMessage}
+        </div>
+      )}
+
       {showBooksModal && (
         <div className="modal-overlay" onClick={() => setShowBooksModal(false)}>
           <div className="modal-content" style={{ maxWidth: 560, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
@@ -703,11 +744,18 @@ export default function ContentPage() {
                     Preview
                   </button>
                   <button className="btn-outline"
+                    style={{ padding: "5px 10px", fontSize: 11, borderColor: "#1E40AF", color: "#1E40AF", opacity: generatingPPT === ch.book_id ? 0.5 : 1 }}
+                    disabled={generatingPPT === ch.book_id}
+                    onClick={() => handleGeneratePPT(ch.book_id)}>
+                    {generatingPPT === ch.book_id ? "…" : "Generate PPT"}
+                  </button>
+                  <button className="btn-outline"
                     style={{ padding: "5px 10px", fontSize: 11, color: "var(--red)", borderColor: "var(--red)", opacity: deleting === ch.book_id ? 0.5 : 1 }}
                     disabled={deleting === ch.book_id}
                     onClick={() => handleDelete(ch.book_id, ch.chapter_title)}>
                     {deleting === ch.book_id ? "…" : "Delete"}
                   </button>
+
                 </div>
               </div>
             </div>
