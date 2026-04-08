@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiFetch, setTokens, clearTokens, getAccessToken, getApiBase, UserRole } from "../lib/api";
+import { apiFetch, setTokens, clearTokens, getAccessToken, getRefreshToken, tryRefresh, UserRole } from "../lib/api";
+import { proxyLogin } from "../actions";
 
 export interface AuthUser {
   user_id: string;
@@ -21,8 +22,8 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
   refreshUser: () => Promise<void>;
+  loadUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,7 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Session restore on mount ──────────────────────────────────────────────
 
   const loadUser = useCallback(async () => {
-    const token = getAccessToken(); // reads from path-detected role
+    setLoading(true);
+    let token = getAccessToken(); // reads from path-detected role
+    
+    // Proactively hit refresh if access token is fully missing but refresh token exists.
+    if (!token && getRefreshToken()) {
+      token = await tryRefresh();
+    }
+
     if (!token) {
       setLoading(false);
       return;
@@ -72,26 +80,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sudo_admin: ["/sudo-admin/login", "/auth/sudo-admin/login"],
     };
 
-    const base = getApiBase();
     let lastNetworkError: string | null = null;
 
     for (const endpoint of endpointCandidatesByRole[role]) {
       try {
-        const res = await fetch(`${base}${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
+        const result = await proxyLogin(endpoint, { email, password });
 
         // 404 means this endpoint doesn't exist — try the next candidate
-        if (res.status === 404) continue;
+        if (result.status === 404) continue;
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => null);
+        if (!result.ok) {
+          const err = result.data;
           const detail =
             err?.detail ||
-            (res.status === 401 ? "Invalid email or password" :
-              res.status === 403 ? "Your account has been deactivated" :
+            (result.status === 401 ? "Invalid email or password" :
+              result.status === 403 ? "Your account has been deactivated" :
                 "Login failed. Please try again.");
           return {
             success: false,
@@ -100,9 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // ── Parse tokens from response ──────────────────────────────────────
-        // Backend sends role-prefixed tokens, e.g. teacher_access_token.
-        // "superadmin" from the API maps to "sudo_admin" in storage.
-        const data = (await res.json()) as Record<string, unknown>;
+        const data = result.data as Record<string, unknown>;
         const userObj = data.user as { role?: string } | undefined;
         const apiRole = userObj?.role ?? "";
 
@@ -174,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, login, logout, refreshUser, loadUser }}>
       {children}
     </AuthContext.Provider>
   );

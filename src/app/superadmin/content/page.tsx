@@ -241,156 +241,282 @@ export default function ContentPage() {
 
   // ── Render helpers ────────────────────────────────────────────────────────
 
-  const renderSummary = (summary?: Record<string, any>) => {
-    if (!summary) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No summary available.</div>;
-    
-    const safeText = (v: any): string => {
-      if (!v) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "object") return v.text || v.content || v.summary || v.description || JSON.stringify(v);
-      return String(v);
-    };
+  const renderSummary = (summaryData?: Record<string, any>) => {
+    if (!summaryData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No summary available.</div>;
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {Object.entries(summary).map(([key, val]) => (
-          <div key={key} style={{ padding: "14px 16px", background: "#F8FAFC", borderRadius: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#1E40AF", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-              {key.replace(/_/g, " ")}
-            </div>
-            {Array.isArray(val) ? (
-              <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
-                {val.map((item: any, i: number) => (
-                  <li key={i} style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{safeText(item)}</li>
-                ))}
-              </ul>
-            ) : (
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>{safeText(val)}</div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
+    // The backend provides { heading, summary, key_points }
+    // Note: summary can sometimes be an object of sections rather than a single string.
+    const rawSummary = summaryData.summary || summaryData.content || (typeof summaryData === "string" ? summaryData : "");
+    const keyPoints = Array.isArray(summaryData.key_points) ? summaryData.key_points : [];
 
-  const renderQABank = (qa_bank?: any) => {
-    if (!qa_bank) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
-    
-    let questions: any[] = [];
-    try {
-      let data = qa_bank;
-      if (typeof data === "string") data = JSON.parse(data);
-      
-      if (Array.isArray(data)) questions = data;
-      else if (data?.questions) questions = data.questions;
-      else if (data?.qa_pairs) questions = data.qa_pairs;
-      else if (data?.data?.questions) questions = data.data.questions;
-      else if (typeof data === "object") questions = (Object.values(data)[0] as any[]) || [];
-    } catch (e) {
-      console.error("Failed to parse QA:", e, qa_bank);
-    }
-
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
-    }
-    
-    const safeText = (v: any): string => {
-      if (!v) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "object") return v.text || v.content || JSON.stringify(v);
-      return String(v);
-    };
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {questions.slice(0, 5).map((item: any, i: number) => {
-          const qText = typeof item === "string" ? item : (item?.question || item?.q || JSON.stringify(item));
-          const aText = typeof item === "object" && item ? (item.answer || item.a) : null;
-          return (
-            <div key={i} style={{ padding: 16, background: "#F8FAFC", borderRadius: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#1E40AF", marginBottom: 6 }}>
-                Q{i + 1}: {safeText(qText)}
+    const renderRawContent = (content: any) => {
+      if (!content) return null;
+      if (typeof content === "string") return content;
+      if (typeof content === "object") {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {Object.entries(content).map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#0369A1", marginBottom: 2 }}>{k}</div>
+                <div style={{ fontSize: 14 }}>{typeof v === "object" ? JSON.stringify(v) : String(v)}</div>
               </div>
-              {aText && (
-                <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  {safeText(aText)}
-                </div>
-              )}
+            ))}
+          </div>
+        );
+      }
+      return String(content);
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {rawSummary && (
+          <div style={{ padding: 20, background: "#F0F9FF", borderRadius: 16, border: "1px solid #BAE6FD" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ padding: 8, background: "#0284C7", borderRadius: 8, color: "white" }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M4 6h16M4 12h16M4 18h7" /></svg>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Chapter Overview</div>
             </div>
-          );
-        })}
-        {questions.length > 5 && (
-          <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-meta)", padding: 8 }}>
-            …and {questions.length - 5} more Q&A pairs
+            <div style={{ fontSize: 15, color: "#0C4A6E", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+              {renderRawContent(rawSummary)}
+            </div>
+          </div>
+        )}
+
+        {keyPoints.length > 0 && (
+          <div style={{ padding: 20, background: "#F8FAFC", borderRadius: 16, border: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ padding: 8, background: "#1E40AF", borderRadius: 8, color: "white" }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#1E3A8A", textTransform: "uppercase", letterSpacing: "0.05em" }}>Key Learning Points</div>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 12 }}>
+              {keyPoints.map((point: string, i: number) => (
+                <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#DBEAFE", color: "#1E40AF", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                    {i + 1}
+                  </div>
+                  <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{point}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {!rawSummary && keyPoints.length === 0 && (
+          <div style={{ padding: 20, background: "#F8FAFC", borderRadius: 12, fontSize: 13, color: "var(--text-meta)" }}>
+            Detailed summary data not found in original format.
+            <pre style={{ fontSize: 11, marginTop: 10, background: "#eee", padding: 10, borderRadius: 8, overflow: "auto" }}>
+              {JSON.stringify(summaryData, null, 2)}
+            </pre>
           </div>
         )}
       </div>
     );
   };
 
-  const renderQuiz = (quiz?: any) => {
-    if (!quiz) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No quiz available.</div>;
-    
+  const renderQABank = (qaData?: any) => {
+    if (!qaData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
+
+    let exercises: any[] = [];
+    try {
+      let data = qaData;
+      if (typeof data === "string") data = JSON.parse(data);
+
+      // Support nested structures: { heading, qa_bank: { exercises: [...] } }
+      const innerData = data?.qa_bank || data?.exercises || data?.questions || data?.qa_pairs || data;
+
+      if (Array.isArray(innerData)) {
+        exercises = innerData;
+      } else if (typeof innerData === "object" && innerData !== null) {
+        // If it's { exercises: [...] }
+        if (Array.isArray(innerData.exercises)) {
+          exercises = innerData.exercises;
+        } else {
+          // Find the first array property
+          const arrayProp = Object.values(innerData).find(v => Array.isArray(v));
+          if (Array.isArray(arrayProp)) exercises = arrayProp;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse QA:", e);
+    }
+
+    if (exercises.length === 0) {
+      return (
+        <div style={{ padding: 20, background: "#F8FAFC", borderRadius: 12, textAlign: "center" }}>
+          <div style={{ color: "var(--text-meta)", fontSize: 14, marginBottom: 10 }}>No questions found in this bank.</div>
+          <details style={{ textAlign: "left", fontSize: 10 }}>
+            <summary style={{ cursor: "pointer", color: "#1E40AF" }}>Raw Data Debug</summary>
+            <pre style={{ maxHeight: 200, overflow: "auto" }}>{JSON.stringify(qaData, null, 2)}</pre>
+          </details>
+        </div>
+      );
+    }
+
+    // Check if it's a flat list of questions or an array of exercise sections
+    const isExerciseList = exercises.some(ex => Array.isArray(ex.questions));
+
+    if (isExerciseList) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          {exercises.map((section: any, idx: number) => (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {(section.section_title || section.title) && (
+                <div style={{ padding: "8px 16px", background: "#F1F5F9", borderRadius: 8, fontWeight: 800, fontSize: 13, color: "#475569", textTransform: "uppercase" }}>
+                  {section.section_title || section.title}
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(section.questions || []).map((item: any, i: number) => (
+                  <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 18px", background: "#F8FAFC", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                      <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 13 }}>#{item.question_number || i + 1}</span>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                        {item.question_text || item.question || item.q || ""}
+                      </div>
+                    </div>
+                    <div style={{ padding: "16px 18px", background: "white", display: "flex", gap: 12 }}>
+                      <span style={{ fontWeight: 800, color: "#059669", fontSize: 13 }}>ANS.</span>
+                      <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>{item.answer || item.a || ""}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // For flat list of questions
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {exercises.map((item: any, i: number) => {
+          const q = item.question_text || item.question || item.q || item.text || (typeof item === "string" ? item : "");
+          const a = item.answer || item.a || item.solution || "";
+
+          return (
+            <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", background: "#F8FAFC", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 13 }}>Q{i + 1}.</span>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", lineHeight: 1.5 }}>{q}</div>
+              </div>
+              <div style={{ padding: "16px 18px", background: "white", display: "flex", gap: 12 }}>
+                <span style={{ fontWeight: 800, color: "#059669", fontSize: 13 }}>ANS.</span>
+                <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>{a}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderQuiz = (quizData?: any) => {
+    if (!quizData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No quiz available.</div>;
+
     let mcqs: any[] = [];
     try {
-      let data = quiz;
+      let data = quizData;
       if (typeof data === "string") data = JSON.parse(data);
-      
-      if (Array.isArray(data)) mcqs = data;
-      else if (data?.mcqs) mcqs = data.mcqs;
-      else if (data?.questions) mcqs = data.questions;
-      else if (data?.data?.questions) mcqs = data.data.questions;
-      else if (typeof data === "object") mcqs = (Object.values(data)[0] as any[]) || [];
+
+      // Support nested structures
+      const innerData = data?.quiz || data?.mcqs || data?.questions || data?.data?.questions || data;
+
+      if (Array.isArray(innerData)) {
+        mcqs = innerData;
+      } else if (typeof innerData === "object" && innerData !== null) {
+        const arrayProp = Object.values(innerData).find(v => Array.isArray(v));
+        if (Array.isArray(arrayProp)) mcqs = arrayProp;
+      }
     } catch (e) {
-      console.error("Failed to parse Quiz:", e, quiz);
+      console.error("Failed to parse Quiz:", e);
     }
 
-    if (!Array.isArray(mcqs) || mcqs.length === 0) {
-      return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No quiz available.</div>;
+    if (mcqs.length === 0) {
+      return (
+        <div style={{ padding: 20, background: "#F8FAFC", borderRadius: 12, textAlign: "center" }}>
+          <div style={{ color: "var(--text-meta)", fontSize: 14, marginBottom: 10 }}>No quiz questions found.</div>
+          <details style={{ textAlign: "left", fontSize: 10 }}>
+            <summary style={{ cursor: "pointer", color: "#1E40AF" }}>Raw Data Debug</summary>
+            <pre style={{ maxHeight: 200, overflow: "auto" }}>{JSON.stringify(quizData, null, 2)}</pre>
+          </details>
+        </div>
+      );
     }
-    
-    const safeText = (v: any): string => {
-      if (!v) return "";
-      if (typeof v === "string") return v;
-      if (typeof v === "object") return v.text || v.content || JSON.stringify(v);
-      return String(v);
-    };
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {mcqs.slice(0, 3).map((item: any, i: number) => {
-          const question = typeof item === "string" ? item : (item?.question || item?.q || "");
-          const options: any[] = typeof item === "object" && item ? (item.options || item.choices || []) : [];
-          const correctIdx: number = typeof item === "object" && item ? (typeof item.correct_answer === "number" ? item.correct_answer
-            : typeof item.correct === "number" ? item.correct : -1) : -1;
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {mcqs.map((item: any, i: number) => {
+          const q = item.question_text || item.question || item.q || "";
+          
+          // Handle options as array or object {"A": "...", "B": "..."}
+          let opts: string[] = [];
+          if (Array.isArray(item.options)) {
+            opts = item.options;
+          } else if (typeof item.options === "object" && item.options !== null) {
+            // Map letter keys or just values
+            opts = ["A", "B", "C", "D"].map(key => item.options[key] || item.options[key.toLowerCase()]).filter(v => v !== undefined);
+            if (opts.length === 0) opts = Object.values(item.options);
+          }
+
+          // Handle correct answer as index (0,1,2,3) or letter ("A", "B", ...)
+          let correctIdx = -1;
+          const rawCorrect = item.correct_answer ?? item.correct ?? item.answer;
+          if (typeof rawCorrect === "number") {
+            correctIdx = rawCorrect;
+          } else if (typeof rawCorrect === "string") {
+            const letter = rawCorrect.trim().toUpperCase()[0];
+            correctIdx = letter.charCodeAt(0) - 65; // A=0, B=1, ...
+          }
+
           return (
-            <div key={i} style={{ padding: 16, background: "#F8FAFC", borderRadius: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Q{i + 1}: {safeText(question)}</div>
-              {Array.isArray(options) && options.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {options.map((opt: any, j: number) => (
-                    <div key={j} style={{
-                      padding: "8px 12px", borderRadius: 8, fontSize: 13, border: "1px solid",
-                      borderColor: j === correctIdx ? "var(--green-dark)" : "var(--border)",
-                      background: j === correctIdx ? "var(--green-light)" : "white",
-                      fontWeight: j === correctIdx ? 600 : 400,
-                      color: j === correctIdx ? "var(--green-dark)" : "var(--text-secondary)",
-                    }}>
-                      {String.fromCharCode(65 + j)}. {safeText(opt)} {j === correctIdx ? " ✓" : ""}
-                    </div>
-                  ))}
+            <div key={i} style={{ padding: 24, background: "white", borderRadius: 20, border: "1px solid var(--border)", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+                <div style={{ padding: "4px 12px", background: "#EFF6FF", color: "#1E40AF", borderRadius: 10, fontSize: 11, fontWeight: 900, alignSelf: "flex-start", letterSpacing: "0.02em" }}>
+                  QUESTION {i + 1}
                 </div>
-              ) : (
-                <div style={{ fontSize: 12, color: "var(--text-meta)" }}>Options not available in preview.</div>
+                <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.5, color: "var(--text-primary)" }}>{q}</div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {opts.map((opt: any, j: number) => {
+                  const isCorrect = j === correctIdx;
+                  return (
+                    <div key={j} style={{
+                      padding: "16px 20px", borderRadius: 16, fontSize: 14, border: "1.5px solid",
+                      borderColor: isCorrect ? "#10B981" : "#E2E8F0",
+                      background: isCorrect ? "#F0FDF4" : "#F8FAFC",
+                      color: isCorrect ? "#065F46" : "var(--text-secondary)",
+                      fontWeight: isCorrect ? 600 : 400,
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      transition: "all 0.2s ease"
+                    }}>
+                      <span style={{ display: "flex", gap: 8 }}>
+                        <span style={{ fontWeight: 800, color: isCorrect ? "#059669" : "#94A3B8" }}>{String.fromCharCode(65 + j)}.</span>
+                        {String(opt)}
+                      </span>
+                      {isCorrect && (
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#10B981", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {item.explanation && (
+                <div style={{ marginTop: 20, padding: 16, background: "#FDF2F8", borderRadius: 12, border: "1px dashed #FBCFE8", fontSize: 13, color: "#9D174D", lineHeight: 1.6 }}>
+                  <span style={{ fontWeight: 800, marginRight: 6 }}>EXPLANATION:</span>
+                  {item.explanation}
+                </div>
               )}
             </div>
           );
         })}
-        {mcqs.length > 3 && (
-          <div style={{ textAlign: "center", fontSize: 12, color: "var(--text-meta)", padding: 8 }}>
-            …and {mcqs.length - 3} more questions
-          </div>
-        )}
       </div>
     );
   };
@@ -655,7 +781,7 @@ export default function ContentPage() {
                       color: previewTab === t ? "#1E40AF" : "var(--text-meta)", cursor: "pointer",
                       borderBottom: `2px solid ${previewTab === t ? "#1E40AF" : "transparent"}`, transition: "all 0.2s",
                     }}>
-                      {t === "summary" ? "📄 Summary" : t === "qa" ? `❓ Q&A (${qaCount(preview.qa_bank)})` : `📝 Quiz (${quizCount(preview.quiz)})`}
+                      {t === "summary" ? "Summary" : t === "qa" ? "QA" : "Quiz"}
                     </button>
                   ))}
                 </div>

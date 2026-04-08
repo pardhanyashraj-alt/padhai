@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import { useTheme, type ThemePreference } from "../../components/ThemeProvider";
+import { apiFetch } from "../../lib/api";
 
 type TabType = "profile" | "security" | "notifications" | "subscription" | "appearance";
 
@@ -29,10 +30,59 @@ export default function AdminSettings() {
 
   const { preference, setPreference, resolvedTheme } = useTheme();
   const [language, setLanguage] = useState("English");
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Password state
+  const [passwords, setPasswords] = useState({
+    current: "",
+    new: "",
+    confirm: ""
+  });
 
   const handleSave = () => {
     setIsSaving(true);
     setTimeout(() => { setIsSaving(false); }, 1000);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+      setMessage({ type: 'error', text: "New passwords do not match." });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const res = await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: {
+          old_password: passwords.current,
+          new_password: passwords.new
+        }
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: "Password updated successfully." });
+        setPasswords({ current: "", new: "", confirm: "" });
+      } else {
+        const err = await res.json();
+        let errorMsg = "Failed to update password.";
+        if (typeof err.detail === 'string') {
+          errorMsg = err.detail;
+        } else if (Array.isArray(err.detail)) {
+          errorMsg = err.detail[0]?.msg || JSON.stringify(err.detail);
+        } else if (err.detail) {
+          errorMsg = JSON.stringify(err.detail);
+        }
+        setMessage({ type: 'error', text: errorMsg });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: "Network error. Please try again." });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderTab = () => {
@@ -72,16 +122,60 @@ export default function AdminSettings() {
         return (
           <div className="card">
             <div className="card-header" style={{ padding: '24px' }}><div className="card-title">Security</div></div>
-            <div className="card-body" style={{ padding: '24px' }}>
+            <form onSubmit={handlePasswordChange}>
+              <div className="card-body" style={{ padding: '24px' }}>
+              {message && (
+                <div style={{ 
+                  padding: '12px 16px', 
+                  borderRadius: '8px', 
+                  marginBottom: '24px',
+                  fontSize: '14px',
+                  background: message.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                  color: message.type === 'success' ? '#059669' : '#DC2626',
+                  border: `1px solid ${message.type === 'success' ? '#10B981' : '#F87171'}`
+                }}>
+                  {message.text}
+                </div>
+              )}
               <div style={{ marginBottom: '32px' }}>
                 <div style={{ fontWeight: 600, marginBottom: '20px' }}>Change Password</div>
                 <div className="form-group" style={{ marginBottom: '16px' }}>
                   <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Current Password</label>
-                  <input className="form-input" style={{ width: '100%', maxWidth: '400px' }} type="password" placeholder="••••••••" />
+                  <input 
+                    className="form-input" 
+                    style={{ width: '100%', maxWidth: '400px' }} 
+                    type="password" 
+                    placeholder="••••••••" 
+                    required
+                    value={passwords.current}
+                    onChange={e => setPasswords({...passwords, current: e.target.value})}
+                  />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', maxWidth: '680px' }}>
-                  <div className="form-group"><label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>New Password</label><input className="form-input" style={{ width: '100%' }} type="password" placeholder="••••••••" /></div>
-                  <div className="form-group"><label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Confirm Password</label><input className="form-input" style={{ width: '100%' }} type="password" placeholder="••••••••" /></div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>New Password</label>
+                    <input 
+                      className="form-input" 
+                      style={{ width: '100%' }} 
+                      type="password" 
+                      placeholder="••••••••" 
+                      required
+                      value={passwords.new}
+                      onChange={e => setPasswords({...passwords, new: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Confirm Password</label>
+                    <input 
+                      className="form-input" 
+                      style={{ width: '100%' }} 
+                      type="password" 
+                      placeholder="••••••••" 
+                      required
+                      value={passwords.confirm}
+                      onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '28px 0' }} />
@@ -94,10 +188,13 @@ export default function AdminSettings() {
                   <div style={{ position: 'absolute', top: '3px', left: security.twoFA ? '23px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'all 0.3s' }} />
                 </div>
               </div>
-            </div>
-            <div style={{ padding: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn-primary" style={{ padding: '12px 28px', background: 'var(--purple)' }} onClick={handleSave}>Update Security</button>
-            </div>
+              </div>
+              <div style={{ padding: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="submit" className="btn-primary" style={{ padding: '12px 28px', background: 'var(--purple)' }} disabled={isSaving}>
+                  {isSaving ? "Updating..." : "Update Security"}
+                </button>
+              </div>
+            </form>
           </div>
         );
       case "notifications":

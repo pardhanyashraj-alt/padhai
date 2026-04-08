@@ -268,7 +268,6 @@ export default function SchoolsPage() {
 
   const handleDetailView = async (s: School) => {
     setLoadingDetails(true);
-    // Open modal immediately with list data so user sees something at once
     setDetailModal({
       school: {
         school_id: s.school_id,
@@ -286,16 +285,22 @@ export default function SchoolsPage() {
     });
 
     try {
-      const res = await apiFetch(`/sudo/schools/${s.school_id}/details`);
-      if (res.ok) {
-        const response = await res.json();
-        console.log("Fetched School Details:", response);
+      // We call two endpoints in parallel to get combined data:
+      // 1. /details -> gives us the Appointed Admin profile
+      // 2. /{id}    -> gives us the full stats (teachers, classes) missing from /details
+      const [resDetails, resStats] = await Promise.all([
+        apiFetch(`/sudo/schools/${s.school_id}/details`),
+        apiFetch(`/sudo/schools/${s.school_id}`)
+      ]);
 
-        // API might return { school: {...}, admin: {...} } OR flat school with nested admin { ..., admin: {...} }
-        const schoolData = response.school || response;
-        const adminData = response.admin;
+      if (resDetails.ok) {
+        const detailResponse = await resDetails.json();
+        const statsResponse = resStats.ok ? await resStats.json() : null;
 
-        // Ensure we prioritize data from the detail endpoint, falling back to list data if necessary
+        const schoolData = detailResponse?.school || detailResponse;
+        const adminData = detailResponse?.admin;
+        const freshStats = statsResponse?.stats;
+
         setDetailModal({
           school: {
             school_id: schoolData?.school_id ?? s.school_id,
@@ -312,15 +317,15 @@ export default function SchoolsPage() {
             noc_affiliation_url: schoolData?.noc_affiliation_url,
             is_active: normaliseBool(schoolData?.is_active ?? s.is_active),
             created_at: schoolData?.created_at ?? s.created_at,
-            // Try to get fresh stats from the detail endpoint, otherwise keep list stats
-            stats: schoolData?.stats || s.stats,
+            // Merge stats: prioritize fresh stats from /{id}, fallback to /details stats, then list stats
+            stats: freshStats || schoolData?.stats || s.stats,
           },
           admin: adminData
             ? { ...adminData, is_active: normaliseBool(adminData.is_active) }
             : null,
         });
       } else {
-        console.error("Error fetching details: status", res.status);
+        console.error("Error fetching details: status", resDetails.status);
       }
     } catch (err) {
       console.error("Error fetching details:", err);

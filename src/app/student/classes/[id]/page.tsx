@@ -214,6 +214,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
   } | null>(null);
   const [quizDetail, setQuizDetail] = useState<any>(null);
   const [serverAttemptMessage, setServerAttemptMessage] = useState<string | null>(null);
+  const [showResultDetail, setShowResultDetail] = useState(false);
 
   // Reset quiz state when the active chapter or content type changes
   useEffect(() => {
@@ -222,6 +223,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
     setQuizResult(null);
     setQuizDetail(null);
     setServerAttemptMessage(null);
+    setShowResultDetail(false);
   }, [activeChapterId, selectedContentType]);
 
   // Fetch full quiz attempt detail if a previous attempt exists
@@ -232,12 +234,15 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
         chapterContent?.latest_attempt?.quiz_attempt_id
       ) {
         try {
-          const res = await apiFetch(
-            `/student/quiz-attempts/${chapterContent.latest_attempt.quiz_attempt_id}`
-          );
-          if (res.ok) setQuizDetail(await res.json());
+          const res = await apiFetch(`/student/quiz-attempts/${chapterContent.latest_attempt.quiz_attempt_id}`);
+          if (res.ok) {
+            setQuizDetail(await res.json());
+          } else {
+            setQuizDetail(null);
+          }
         } catch (err) {
           console.error("Error fetching quiz result:", err);
+          setQuizDetail(null);
         }
       }
     };
@@ -295,6 +300,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
       );
       if (res.ok) {
         const data = await res.json();
+        console.log("[DEBUG] Chapter Content Loaded:", data);
         if (
           !data ||
           (!data.summary && !data.quiz && !data.qa_bank)
@@ -369,19 +375,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
           </div>
         )}
 
-        {/* 3. Key Points */}
-        {Array.isArray(keyPoints) && keyPoints.length > 0 && (
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Key Points</div>
-            <ul style={{ paddingLeft: 20, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-              {keyPoints.map((p: any, i: number) => (
-                <li key={i} style={{ fontSize: 14, lineHeight: 1.6 }}>{String(p)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* 4. Other section paragraphs */}
+        {/* 3. Other section paragraphs */}
         {Object.keys(paragraphSummary).length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Section Summary</div>
@@ -391,6 +385,18 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                 <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{String(value)}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 4. Key Points (Rendered Below) */}
+        {Array.isArray(keyPoints) && keyPoints.length > 0 && (
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Key Points</div>
+            <ul style={{ paddingLeft: 20, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {keyPoints.map((p: any, i: number) => (
+                <li key={i} style={{ fontSize: 14, lineHeight: 1.6 }}>{String(p)}</li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -476,10 +482,12 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
       (quizData as any)?.quiz?.title ||
       "";
 
-    const score = quizResult?.score ?? chapterContent?.latest_attempt?.score ?? null;
-    const total = quizResult?.total ?? chapterContent?.latest_attempt?.total_questions ?? questions.length;
-    const percentage = quizResult?.percentage ?? chapterContent?.latest_attempt?.percentage ?? null;
-    const attempted = !!chapterContent?.latest_attempt;
+    const score = quizResult?.score ?? quizDetail?.score ?? chapterContent?.latest_attempt?.score ?? null;
+    const total = quizResult?.total ?? quizDetail?.total_questions ?? chapterContent?.latest_attempt?.total_questions ?? questions.length;
+    const percentage = quizResult?.percentage ?? quizDetail?.percentage ?? chapterContent?.latest_attempt?.percentage ?? null;
+    
+    // As long as the chapter object says it's attempted, or we fetched detail/result, mark as attempted immediately!
+    const attempted = !!chapterContent?.latest_attempt || !!quizDetail;
     const isCompleted = attempted || !!quizResult;
     const allAnswered = Object.keys(quizAnswers).length === questions.length;
 
@@ -490,20 +498,29 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
     const submitQuiz = async () => {
       if (!chapterContent?.class_chapter_id) return;
       setIsTakingQuiz(false);
+      
+      const payload = { student_answers: quizAnswers };
+      console.log("Submitting Quiz Payload:", payload);
+      
       try {
         const res = await apiFetch(
           `/student/quiz/${chapterContent.class_chapter_id}/submit`,
-          { method: "POST", body: JSON.stringify({ student_answers: quizAnswers }) }
+          { method: "POST", body: JSON.stringify(payload) }
         );
+        
         if (res.ok) {
           const resultData = await res.json();
+          console.log("Quiz Submission Response Success:", resultData);
           setQuizResult({ score: resultData.score, total: resultData.total_questions, percentage: resultData.percentage });
           setServerAttemptMessage("Quiz submitted successfully.");
           loadChapterContent(chapterContent.class_chapter_id);
         } else {
-          setServerAttemptMessage(`Failed to submit: ${await res.text()}`);
+          const errorText = await res.text();
+          console.log("Quiz Submission Response Error:", res.status, errorText);
+          setServerAttemptMessage(`Failed to submit: ${errorText}`);
         }
-      } catch {
+      } catch (err) {
+        console.error("Quiz Submission Exception:", err);
         setServerAttemptMessage("Failed to submit attempt to server.");
       }
     };
@@ -514,13 +531,56 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
 
         {/* Result banner */}
         {isCompleted && (
-          <div style={{ padding: 14, borderRadius: 12, background: "#ECFDF5", border: "1px solid #D1FAE5" }}>
-            <div style={{ fontWeight: 700, color: "#065F46" }}>Quiz Result</div>
-            <div style={{ marginTop: 6, color: "#065F46" }}>
-              Score: {score ?? 0}/{total} ({percentage ?? 0}%)
+          <div style={{ padding: 20, borderRadius: 16, background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)", border: "1px solid #A7F3D0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: (percentage ?? 0) >= 50 ? "#059669" : "#DC2626", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16 }}>
+                {(percentage ?? 0) >= 50 ? "✓" : "✕"}
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: "#065F46" }}>Quiz Result</div>
+                <div style={{ fontSize: 13, color: "#047857", fontWeight: 600 }}>
+                  {quizDetail?.pass_fail || ((percentage ?? 0) >= 50 ? "PASS" : "FAIL")}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 24, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>Score</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#065F46" }}>{score ?? 0}/{total}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>Percentage</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#065F46" }}>{(percentage ?? 0).toFixed(1)}%</div>
+              </div>
+              {quizDetail?.submitted_date && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>Submitted</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#065F46" }}>{new Date(quizDetail.submitted_date).toLocaleDateString()}</div>
+                </div>
+              )}
             </div>
             {serverAttemptMessage && (
-              <div style={{ marginTop: 6, color: "#065F46" }}>{serverAttemptMessage}</div>
+              <div style={{ marginTop: 6, color: "#065F46", fontSize: 13, fontWeight: 600 }}>{serverAttemptMessage}</div>
+            )}
+            {/* View Result button — only for previously attempted quizzes, not during active quiz taking */}
+            {attempted && !isTakingQuiz && (
+              <button
+                onClick={() => setShowResultDetail(!showResultDetail)}
+                style={{
+                  marginTop: 8,
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "1.5px solid #059669",
+                  background: showResultDetail ? "#059669" : "white",
+                  color: showResultDetail ? "white" : "#059669",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {showResultDetail ? "Hide Details" : "📋 View Result"}
+              </button>
             )}
           </div>
         )}
@@ -528,16 +588,16 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
         {/* Start quiz CTA */}
         {!isCompleted && !isTakingQuiz && (
           <button
-            onClick={() => { setIsTakingQuiz(true); setQuizResult(null); setServerAttemptMessage(null); }}
+            onClick={() => { setIsTakingQuiz(true); setQuizResult(null); setServerAttemptMessage(null); setShowResultDetail(false); }}
             className="btn-primary"
             style={{ width: "fit-content", marginBottom: 12 }}
           >
-            Start Quiz
+            Attempt Quiz
           </button>
         )}
 
-        {/* Questions list */}
-        {(isTakingQuiz || isCompleted) &&
+        {/* Questions list — shown when taking quiz, just submitted, or user clicked View Result */}
+        {(isTakingQuiz || (isCompleted && (showResultDetail || !!quizResult))) &&
           questions.map((q, i) => {
             const questionDetail = quizDetail?.questions?.find(
               (qd: any) => String(qd.id) === String(q.id)

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import StudentSidebar from "../../components/StudentSidebar";
 import { useTheme, type ThemePreference } from "../../components/ThemeProvider";
+import { apiFetch } from "../../lib/api";
 
 type TabType = "profile" | "security" | "notifications" | "appearance" | "learning" | "privacy";
 
@@ -10,6 +11,14 @@ export default function StudentSettings() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isSaving, setIsSaving] = useState(false);
   const { preference, setPreference, resolvedTheme } = useTheme();
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Password state
+  const [passwords, setPasswords] = useState({
+    current: "",
+    new: "",
+    confirm: ""
+  });
 
   // Profile States
   const [profile, setProfile] = useState({
@@ -25,6 +34,47 @@ export default function StudentSettings() {
       setIsSaving(false);
       alert("Settings saved successfully!");
     }, 1000);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+      setMessage({ type: 'error', text: "New passwords do not match." });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const res = await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: {
+          old_password: passwords.current,
+          new_password: passwords.new
+        }
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: "Password updated successfully." });
+        setPasswords({ current: "", new: "", confirm: "" });
+      } else {
+        const err = await res.json();
+        let errorMsg = "Failed to update password.";
+        if (typeof err.detail === 'string') {
+          errorMsg = err.detail;
+        } else if (Array.isArray(err.detail)) {
+          errorMsg = err.detail[0]?.msg || JSON.stringify(err.detail);
+        } else if (err.detail) {
+          errorMsg = JSON.stringify(err.detail);
+        }
+        setMessage({ type: 'error', text: errorMsg });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: "Network error. Please try again." });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderTabContent = () => {
@@ -86,30 +136,71 @@ export default function StudentSettings() {
             <div className="card-header" style={{ padding: '24px' }}>
               <div className="card-title">Security Settings</div>
             </div>
-            <div className="card-body" style={{ padding: '24px' }}>
+            <form onSubmit={handlePasswordChange}>
+              <div className="card-body" style={{ padding: '24px' }}>
+              {message && (
+                <div style={{ 
+                  padding: '12px 16px', 
+                  borderRadius: '8px', 
+                  marginBottom: '24px',
+                  fontSize: '14px',
+                  background: message.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                  color: message.type === 'success' ? '#059669' : '#DC2626',
+                  border: `1px solid ${message.type === 'success' ? '#10B981' : '#F87171'}`
+                }}>
+                  {message.text}
+                </div>
+              )}
               <div style={{ marginBottom: '32px' }}>
                 <div className="card-subtitle" style={{ marginBottom: '20px', fontWeight: 600, color: 'var(--text-primary)' }}>Change Password</div>
                 <div className="form-group" style={{ marginBottom: '24px' }}>
                   <label className="form-label text-gray-700 dark:text-gray-300" style={{ marginBottom: '8px', display: 'block' }}>Current Password</label>
-                  <input className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" style={{ width: '100%' }} type="password" placeholder="••••••••" />
+                  <input 
+                    className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" 
+                    style={{ width: '100%' }} 
+                    type="password" 
+                    placeholder="••••••••" 
+                    required
+                    value={passwords.current}
+                    onChange={e => setPasswords({...passwords, current: e.target.value})}
+                  />
                 </div>
                 <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
                   <div className="form-group">
                     <label className="form-label text-gray-700 dark:text-gray-300" style={{ marginBottom: '8px', display: 'block' }}>New Password</label>
-                    <input className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" style={{ width: '100%' }} type="password" placeholder="••••••••" />
+                    <input 
+                      className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" 
+                      style={{ width: '100%' }} 
+                      type="password" 
+                      placeholder="••••••••" 
+                      required
+                      value={passwords.new}
+                      onChange={e => setPasswords({...passwords, new: e.target.value})}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label text-gray-700 dark:text-gray-300" style={{ marginBottom: '8px', display: 'block' }}>Confirm New Password</label>
-                    <input className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" style={{ width: '100%' }} type="password" placeholder="••••••••" />
+                    <input 
+                      className="form-input bg-white text-black dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg p-3 w-full" 
+                      style={{ width: '100%' }} 
+                      type="password" 
+                      placeholder="••••••••" 
+                      required
+                      value={passwords.confirm}
+                      onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                    />
                   </div>
                 </div>
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '32px 0' }} />
               <button className="btn-outline" style={{ color: 'var(--red)', borderColor: 'var(--red)', padding: '10px 20px' }}>Logout from all devices</button>
-            </div>
-            <div className="card-footer" style={{ padding: '24px', display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button className="btn-primary" style={{ padding: '12px 28px', background: '#059669' }} onClick={handleSave}>Update Password</button>
-            </div>
+              </div>
+              <div className="card-footer" style={{ padding: '24px', display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button type="submit" className="btn-primary" style={{ padding: '12px 28px', background: '#059669' }} disabled={isSaving}>
+                  {isSaving ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
           </div>
         );
       case "notifications":

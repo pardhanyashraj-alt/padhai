@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND = "https://padhai-backend-qbw5.onrender.com";
+const DEFAULT_BACKEND = "http://127.0.0.1:8000";
 
 function normalizeBase(url: string): string {
   const t = url.trim().replace(/\/+$/, "");
@@ -79,7 +79,7 @@ export function clearTokens(role?: UserRole) {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-async function tryRefresh(): Promise<string | null> {
+export async function tryRefresh(): Promise<string | null> {
   const role = getRoleFromPath();
   const refreshToken = role ? getRefreshToken(role) : null;
 
@@ -88,16 +88,34 @@ async function tryRefresh(): Promise<string | null> {
   try {
     const res = await fetch(`${getApiBase()}/auth/refresh`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${refreshToken}` },
+      headers: { 
+        "Authorization": `Bearer ${refreshToken}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({}),
     });
 
     if (!res.ok) {
+      const errorText = await res.text().catch(() => "Could not read error body");
+      console.error("[DEBUG] /auth/refresh failed! Status:", res.status, "Body:", errorText);
+      
+      // The server definitively rejected the refresh token!
       clearTokens(role);
       return null;
     }
 
     const data = await res.json();
-    const newAccess = data[`${role}_access_token`] as string;
+    
+    // The backend dynamically prefixes the access token with the role (e.g. "student_access_token")
+    const newAccess = (data[`${role}_access_token`] || data.access_token) as string;
+    
+    if (!newAccess) {
+      console.error("[DEBUG] /auth/refresh succeeded, but could not find the token in the response JSON!");
+      clearTokens(role);
+      return null;
+    }
+
     localStorage.setItem(`${role}_access_token`, newAccess);
     return newAccess;
   } catch {

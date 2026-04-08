@@ -5,16 +5,12 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
-import { mockPublished, mockPerformance } from "../../../data/mockData";
 
 interface Student {
-  id: string;
-  name: string;
-  initials: string;
-  color: string;
-  attendance: number;
-  grade: number;
-  status: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
 }
 
 interface Chapter {
@@ -364,16 +360,16 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
           }
         }
 
-        // Restore mock data for students as requested by user
-        setStudents(mockPerformance.map(m => ({
-          id: m.id,
-          name: m.name,
-          initials: m.name.split(" ").map(n => n[0]).join(""),
-          color: "var(--blue)",
-          attendance: m.attendancePct,
-          grade: m.quizScore,
-          status: m.quizScore >= 90 ? "excellent" : "good"
-        })));
+        // Fetch real enrolled students from the API
+        try {
+          const studentsRes = await apiFetch(`/teacher/classes/${classId}/students`);
+          if (studentsRes.ok) {
+            const studentsData = await studentsRes.json();
+            setStudents(studentsData.students || []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch students:", err);
+        }
 
         // Use the books endpoint to construct curriculum (only assigned chapters)
         if (curriculumRes.ok) {
@@ -579,16 +575,16 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="grid grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Avg Score</div>
-                  <div className="text-2xl font-black text-orange-500">{students.length > 0 ? (students.reduce((a, b) => a + b.grade, 0) / students.length).toFixed(1) : "--"}%</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Students</div>
+                  <div className="text-2xl font-black text-orange-500">{students.length}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Progress</div>
                   <div className="text-2xl font-black text-emerald-600">{progressPercentage}%</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Outstanding</div>
-                  <div className="text-2xl font-black text-indigo-600">{students.filter(s => s.grade >= 90).length}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Chapters</div>
+                  <div className="text-2xl font-black text-indigo-600">{curriculum.length}</div>
                 </div>
               </div>
               <div className="mt-8">
@@ -708,48 +704,35 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             <div className="overflow-x-auto">
-              <div className="min-w-[800px]">
-                <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-8 py-5 bg-slate-50/50 border-b border-slate-100">
-                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Student Details</div>
-                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Attendance Health</div>
-                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Perf. Index</div>
-                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Ranking</div>
+              <div className="min-w-[600px]">
+                <div className="grid grid-cols-[2.5fr_2fr_1fr] px-8 py-5 bg-slate-50/50 border-b border-slate-100">
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Student</div>
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Email</div>
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">ID</div>
                 </div>
 
                 <div className="divide-y divide-slate-50">
-                  {students.map((student) => (
-                    <div key={student.id} className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-8 py-5 items-center hover:bg-slate-50/30 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ background: student.color }}>
-                          {student.initials}
+                  {students.map((student) => {
+                    const initials = `${(student.first_name?.[0] || '').toUpperCase()}${(student.last_name?.[0] || '').toUpperCase()}`;
+                    const colors = ['#4F46E5', '#7C3AED', '#2563EB', '#0891B2', '#059669', '#D97706', '#DC2626', '#DB2777'];
+                    const colorIndex = student.user_id ? student.user_id.charCodeAt(0) % colors.length : 0;
+                    return (
+                      <div key={student.user_id} className="grid grid-cols-[2.5fr_2fr_1fr] px-8 py-5 items-center hover:bg-slate-50/30 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-[15px] shadow-sm" style={{ background: colors[colorIndex] }}>
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-extrabold text-slate-800 truncate">{student.first_name} {student.last_name}</div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-extrabold text-slate-800 truncate">{student.name}</div>
-                          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-tight">ID: #{student.id.substring(0, 8)}</div>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-4 pr-10">
-                        <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-1000" style={{
-                            width: `${student.attendance}%`,
-                            background: student.attendance >= 90 ? "#10b981" : "#3b82f6"
-                          }}></div>
-                        </div>
-                        <span className="text-[14px] font-black text-slate-700 w-10 text-right">{student.attendance}%</span>
-                      </div>
+                        <div className="text-[14px] text-slate-500 font-medium truncate">{student.email}</div>
 
-                      <div className="text-[16px] font-black text-indigo-600 px-2">{student.grade}%</div>
-
-                      <div>
-                        <span className={`inline-flex px-3.5 py-1.5 rounded-xl text-[12px] font-black tracking-wide uppercase ${student.status === 'excellent' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                            'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                          }`}>
-                          {student.status}
-                        </span>
+                        <div className="text-[12px] font-bold text-slate-400 uppercase tracking-tight">#{student.user_id?.substring(0, 8)}</div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {students.length === 0 && (
                     <div className="py-24 flex flex-col items-center text-center px-6">

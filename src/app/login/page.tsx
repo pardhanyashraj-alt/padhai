@@ -8,13 +8,20 @@ import type { UserRole } from '../lib/api';
 function LoginContent() {
   const router = useRouter();
   const pathname = usePathname();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, loading: authLoading, loadUser } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Re-trigger token check on mount (fixes client-side navigation caching)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      loadUser();
+    }
+  }, [pathname, loadUser]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -66,6 +73,14 @@ function LoginContent() {
 
     setLoading(false);
   };
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC' }}>
+        <div style={{ color: '#4F46E5', fontWeight: 600 }}>Authenticating session...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={s.page}>
