@@ -364,7 +364,7 @@ export default function TeachersPage() {
                       <div key={cls.class_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#F8FAFC", borderRadius: 10, border: "1px solid var(--border)", fontSize: 13 }}>
                         <div>
                           <span style={{ fontWeight: 700 }}>Grade {cls.grade_level}{cls.section}</span>
-                          <span style={{ color: "var(--text-meta)", marginLeft: 8 }}>· {cls.subject}</span>
+                          <span style={{ color: "var(--text-meta)", marginLeft: 8 }}>· {cls.subject ? String(cls.subject).charAt(0).toUpperCase() + String(cls.subject).slice(1) : ''}</span>
                         </div>
                         {cls.is_classroom_teacher && (
                           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--purple-dark)", background: "var(--purple-light)", padding: "2px 8px", borderRadius: 6 }}>Class Teacher</span>

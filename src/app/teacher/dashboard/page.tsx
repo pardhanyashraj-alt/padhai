@@ -33,7 +33,7 @@ export default function Home() {
     return dashboardData.classes.map((c: any) => ({
       id: c.class_id,
       initials: c.subject ? c.subject.substring(0, 2).toUpperCase() : "??",
-      name: `${c.subject} — Grade ${c.grade_level}`,
+      name: `${c.subject ? String(c.subject).charAt(0).toUpperCase() + String(c.subject).slice(1) : ''} — Grade ${c.grade_level}`,
       meta: `${c.student_count} students · ${c.section} · ${c.school_name}`,
       progress: c.total_chapters > 0 ? Math.round((c.published_chapters / c.total_chapters) * 100) : 0,
       color: c.grade_level % 2 === 0 ? "fill-blue" : "fill-orange"

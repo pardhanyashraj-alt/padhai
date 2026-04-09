@@ -228,7 +228,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <div className="class-info">
                   <div className="class-name" style={{ fontSize: 13 }}>Ch {ch.chapter_number}: {ch.chapter_title}</div>
-                  <div className="class-meta">{ch.book_name} · Class {ch.class_grade} · {ch.subject}</div>
+                  <div className="class-meta">{ch.book_name} · Class {ch.class_grade} · {ch.subject ? String(ch.subject).charAt(0).toUpperCase() + String(ch.subject).slice(1) : ''}</div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--green-dark)", background: "var(--green-light)", padding: "4px 8px", borderRadius: 6 }}>
                   Processed

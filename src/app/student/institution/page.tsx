@@ -79,7 +79,7 @@ export default function InstitutionPage() {
                   <div className="avatar" style={{ background: t.color, width: '56px', height: '56px', fontSize: '18px' }}>{t.initials}</div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '16px' }}>{t.name}</div>
-                    <div style={{ fontSize: '13px', color: t.color, fontWeight: 600 }}>{t.subject}</div>
+                    <div style={{ fontSize: '13px', color: t.color, fontWeight: 600 }}>{t.subject ? String(t.subject).charAt(0).toUpperCase() + String(t.subject).slice(1) : ''}</div>
                   </div>
                 </div>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>

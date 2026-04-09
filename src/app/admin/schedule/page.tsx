@@ -555,9 +555,9 @@ export default function AdminSchedulePage() {
                       fontFamily: "inherit",
                       zIndex: 1,
                     }}
-                    title={`${s.subject} · ${teacherName(s.teacher_id)}`}
+                    title={`${s.subject ? String(s.subject).charAt(0).toUpperCase() + String(s.subject).slice(1) : ''} · ${teacherName(s.teacher_id)}`}
                   >
-                    <span style={{ color: fg }}>{s.subject}</span>
+                    <span style={{ color: fg }}>{s.subject ? String(s.subject).charAt(0).toUpperCase() + String(s.subject).slice(1) : ''}</span>
                     <span style={{ fontWeight: 500, opacity: 0.9 }}>
                       {c ? `${c.className} ${c.section}` : "Class"}{" "}
                       · {s.start_time}–{s.end_time}

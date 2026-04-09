@@ -984,7 +984,7 @@ function AIOutputContent() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-widest">{subject}</span>
+            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase tracking-widest">{subject ? String(subject).charAt(0).toUpperCase() + String(subject).slice(1) : ''}</span>
             <span className="px-2.5 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-widest">{type_raw} Output</span>
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">{chapter_label}</h1>

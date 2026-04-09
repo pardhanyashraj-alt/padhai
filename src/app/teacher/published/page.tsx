@@ -372,7 +372,7 @@ function ContentPanel({
               <span style={{ fontSize: 11, fontWeight: 900, color: colors.text, background: colors.bg, padding: "4px 12px", borderRadius: 8, textTransform: "uppercase" }}>{item.contentType}</span>
             </div>
             <div style={{ fontWeight: 800, fontSize: 17, color: "var(--text-primary)", marginBottom: 4 }}>{item.chapter}</div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{item.book} · {item.subject}</div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{item.book} · {item.subject ? String(item.subject).charAt(0).toUpperCase() + String(item.subject).slice(1) : ''}</div>
           </div>
           <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--white)", color: "var(--text-primary)", cursor: "pointer" }}>✕</button>
         </div>
@@ -433,7 +433,7 @@ function PublishedContentList() {
             if (classMeta) {
               metaGrade = String(classMeta.grade_level);
               metaSubject = classMeta.subject;
-              setClassName(`${classMeta.subject} (${classMeta.grade_level}${classMeta.section || ""})`);
+              setClassName(`${classMeta.subject ? String(classMeta.subject).charAt(0).toUpperCase() + String(classMeta.subject).slice(1) : ''} (${classMeta.grade_level}${classMeta.section || ""})`);
             }
           }
 
@@ -553,7 +553,7 @@ function PublishedContentList() {
                 </div>
                 <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8, color: "var(--text-primary)" }}>{item.chapter}</div>
                 <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 4, fontWeight: 600 }}>{item.book}</div>
-                <div style={{ fontSize: 13, color: "var(--text-meta)", marginBottom: 24 }}>{item.subject} · Grade {item.grade}</div>
+                <div style={{ fontSize: 13, color: "var(--text-meta)", marginBottom: 24 }}>{item.subject ? String(item.subject).charAt(0).toUpperCase() + String(item.subject).slice(1) : ''} · Grade {item.grade}</div>
                 <div style={{ display: "flex", gap: 12 }}>
                   <button className="btn-outline" style={{ flex: 1, fontSize: 13, fontWeight: 700, borderRadius: 12, padding: "10px 0" }} onClick={() => setActiveItem(item)}>👁 Preview</button>
                   <button className="btn-primary" style={{ flex: 1, fontSize: 13, fontWeight: 700, borderRadius: 12, padding: "10px 0", background: "var(--bg-light)", color: "var(--blue)", border: "none" }} onClick={() => setActiveItem(item)}>✏️ Edit</button>

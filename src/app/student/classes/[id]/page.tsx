@@ -215,6 +215,12 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
   const [quizDetail, setQuizDetail] = useState<any>(null);
   const [serverAttemptMessage, setServerAttemptMessage] = useState<string | null>(null);
   const [showResultDetail, setShowResultDetail] = useState(false);
+  const [allQuizAttempts, setAllQuizAttempts] = useState<any[]>([]);
+
+  // Derived state: Is there an attempt for the current active chapter?
+  const currentChapterAttempt = allQuizAttempts.find(
+    (a) => a.class_chapter_id === activeChapterId && a.status === "submitted"
+  );
 
   // Reset quiz state when the active chapter or content type changes
   useEffect(() => {
@@ -229,12 +235,9 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
   // Fetch full quiz attempt detail if a previous attempt exists
   useEffect(() => {
     const fetchQuizResult = async () => {
-      if (
-        selectedContentType === "quiz" &&
-        chapterContent?.latest_attempt?.quiz_attempt_id
-      ) {
+      if (selectedContentType === "quiz" && currentChapterAttempt?.quiz_attempt_id) {
         try {
-          const res = await apiFetch(`/student/quiz-attempts/${chapterContent.latest_attempt.quiz_attempt_id}`);
+          const res = await apiFetch(`/student/quiz-attempts/${currentChapterAttempt.quiz_attempt_id}`);
           if (res.ok) {
             setQuizDetail(await res.json());
           } else {
@@ -247,7 +250,27 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
       }
     };
     fetchQuizResult();
-  }, [selectedContentType, chapterContent?.latest_attempt?.quiz_attempt_id]);
+  }, [selectedContentType, currentChapterAttempt?.quiz_attempt_id]);
+
+  // Fetch all quiz attempts for the student once on mount
+  const fetchAllQuizAttempts = async () => {
+    try {
+      let res = await apiFetch("/quiz/attempts");
+      if (res.status === 404) {
+        res = await apiFetch("/student/quiz/attempts");
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setAllQuizAttempts(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch all quiz attempts:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllQuizAttempts();
+  }, []);
 
   useEffect(() => {
     const loadClassData = async () => {
@@ -267,13 +290,14 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
               setPublishedContent(contentData);
 
               if (contentData?.chapters?.length > 0) {
-                if (!activeChapterId) {
+                // If we don't have an active chapter, or our current active chapter is NOT in the new list of loaded chapters, we should switch to the first available one!
+                const currentStillExists = contentData.chapters.some((c: any) => c.class_chapter_id === activeChapterId);
+                
+                if (!activeChapterId || !currentStillExists) {
                   setActiveChapterId(contentData.chapters[0].class_chapter_id);
                 }
-              } else {
-                setActiveChapterId(null);
-                setChapterContent(null);
               }
+              // We DO NOT set activeChapterId to null here anymore! If it's empty, we just leave the active chapter alone to prevent it from flashing/blanking out valid content that was just fetched.
             }
           }
         }
@@ -288,11 +312,6 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
   }, [id, subject, selectedContentType, activeChapterId]);
 
   const loadChapterContent = async (classChapterId: string) => {
-    const isPublished = publishedContent?.chapters?.some(
-      (c) => c.class_chapter_id === classChapterId
-    );
-    if (!isPublished) { setChapterContent(null); return; }
-
     setContentLoading(true);
     try {
       const res = await apiFetch(
@@ -409,44 +428,97 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
 
   // ─── renderQABank ────────────────────────────────────────────────────────────
 
-  const renderQABank = (qa_bank: ChapterContent["qa_bank"]) => {
-    if (!qa_bank)
-      return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
+  const renderQABank = (qaData?: any) => {
+    if (!qaData) return <div style={{ color: "var(--text-meta)", fontSize: 14 }}>No Q&A available.</div>;
 
-    const qaBody = (qa_bank as any).qa_bank || qa_bank;
-    const exercises = qaBody?.exercises || qaBody?.qa?.exercises || (qa_bank as any).questions || [];
+    let exercises: any[] = [];
+    try {
+      let data = qaData;
+      if (typeof data === "string") data = JSON.parse(data);
 
-    if (!Array.isArray(exercises) || exercises.length === 0)
-      return <div style={{ fontSize: 13, color: "var(--text-meta)" }}>Q&A data is in an unexpected format.</div>;
+      // Support nested structures: { heading, qa_bank: { exercises: [...] } }
+      const innerData = data?.qa_bank || data?.exercises || data?.questions || data?.qa_pairs || data;
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {exercises.map((section: any, idx: number) => {
-          const sectionQuestions = section.questions || [];
-          return (
-            <div key={idx} style={{ padding: 10, borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)" }}>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-                {section.section_title || `Section ${idx + 1}`}
-              </div>
-              {Array.isArray(sectionQuestions) &&
-                sectionQuestions.map((q: any, j: number) => {
-                  const textRaw = q?.question_text || q?.question || q?.q || q?.prompt || q;
-                  const answerRaw = q?.answer || q?.a || q?.response || "";
-                  const text =
-                    typeof textRaw === "string" ? textRaw
-                      : typeof textRaw === "object" ? (textRaw?.label || textRaw?.text || JSON.stringify(textRaw))
-                        : String(textRaw);
-                  const answer =
-                    typeof answerRaw === "string" ? answerRaw
-                      : typeof answerRaw === "object" && answerRaw !== null ? JSON.stringify(answerRaw)
-                        : String(answerRaw);
-                  return (
-                    <div key={j} style={{ marginBottom: 10 }}>
-                      <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>Q{j + 1}: {text}</div>
-                      {answer && <div style={{ fontSize: 14, color: "var(--text-primary)" }}>A: {answer}</div>}
+      if (Array.isArray(innerData)) {
+        exercises = innerData;
+      } else if (typeof innerData === "object" && innerData !== null) {
+        // If it's { exercises: [...] }
+        if (Array.isArray(innerData.exercises)) {
+          exercises = innerData.exercises;
+        } else {
+          // Find the first array property
+          const arrayProp = Object.values(innerData).find(v => Array.isArray(v));
+          if (Array.isArray(arrayProp)) exercises = arrayProp;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse QA:", e);
+    }
+
+    if (exercises.length === 0) {
+      return (
+        <div style={{ padding: 20, background: "#F8FAFC", borderRadius: 12, textAlign: "center" }}>
+          <div style={{ color: "var(--text-meta)", fontSize: 14, marginBottom: 10 }}>No questions found in this bank.</div>
+          <details style={{ textAlign: "left", fontSize: 10 }}>
+            <summary style={{ cursor: "pointer", color: "#1E40AF" }}>Raw Data Debug</summary>
+            <pre style={{ maxHeight: 200, overflow: "auto" }}>{JSON.stringify(qaData, null, 2)}</pre>
+          </details>
+        </div>
+      );
+    }
+
+    // Check if it's a flat list of questions or an array of exercise sections
+    const isExerciseList = exercises.some(ex => Array.isArray(ex.questions));
+
+    if (isExerciseList) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+          {exercises.map((section: any, idx: number) => (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {(section.section_title || section.title) && (
+                <div style={{ padding: "8px 16px", background: "#F1F5F9", borderRadius: 8, fontWeight: 800, fontSize: 13, color: "#475569", textTransform: "uppercase" }}>
+                  {section.section_title || section.title}
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(section.questions || []).map((item: any, i: number) => (
+                  <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 18px", background: "#F8FAFC", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                      <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 13 }}>Q{item.question_number || i + 1}:</span>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                        {item.question_text || item.question || item.q || ""}
+                      </div>
                     </div>
-                  );
-                })}
+                    <div style={{ padding: "16px 18px", background: "white", display: "flex", gap: 12 }}>
+                      <span style={{ fontWeight: 800, color: "#059669", fontSize: 13 }}>ANS.</span>
+                      <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>{item.answer || item.a || ""}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // For flat list of questions
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {exercises.map((item: any, i: number) => {
+          const q = item.question_text || item.question || item.q || item.text || (typeof item === "string" ? item : "");
+          const a = item.answer || item.a || item.solution || "";
+
+          return (
+            <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", background: "#F8FAFC", borderBottom: "1px solid var(--border)", display: "flex", gap: 12 }}>
+                <span style={{ fontWeight: 800, color: "#1E40AF", fontSize: 13 }}>Q{i + 1}.</span>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", lineHeight: 1.5 }}>{q}</div>
+              </div>
+              <div style={{ padding: "16px 18px", background: "white", display: "flex", gap: 12 }}>
+                <span style={{ fontWeight: 800, color: "#059669", fontSize: 13 }}>ANS.</span>
+                <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>{a}</div>
+              </div>
             </div>
           );
         })}
@@ -482,12 +554,12 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
       (quizData as any)?.quiz?.title ||
       "";
 
-    const score = quizResult?.score ?? quizDetail?.score ?? chapterContent?.latest_attempt?.score ?? null;
-    const total = quizResult?.total ?? quizDetail?.total_questions ?? chapterContent?.latest_attempt?.total_questions ?? questions.length;
-    const percentage = quizResult?.percentage ?? quizDetail?.percentage ?? chapterContent?.latest_attempt?.percentage ?? null;
+    const score = quizResult?.score ?? quizDetail?.score ?? currentChapterAttempt?.score ?? null;
+    const total = quizResult?.total ?? quizDetail?.total_questions ?? currentChapterAttempt?.total_questions ?? questions.length;
+    const percentage = quizResult?.percentage ?? quizDetail?.percentage ?? currentChapterAttempt?.percentage ?? null;
     
     // As long as the chapter object says it's attempted, or we fetched detail/result, mark as attempted immediately!
-    const attempted = !!chapterContent?.latest_attempt || !!quizDetail;
+    const attempted = !!currentChapterAttempt || !!quizDetail;
     const isCompleted = attempted || !!quizResult;
     const allAnswered = Object.keys(quizAnswers).length === questions.length;
 
@@ -513,6 +585,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
           console.log("Quiz Submission Response Success:", resultData);
           setQuizResult({ score: resultData.score, total: resultData.total_questions, percentage: resultData.percentage });
           setServerAttemptMessage("Quiz submitted successfully.");
+          fetchAllQuizAttempts(); // Refresh the list of quiz attempts
           loadChapterContent(chapterContent.class_chapter_id);
         } else {
           const errorText = await res.text();
@@ -741,7 +814,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
               Back to Classes
             </Link>
             <h1>Grade {studentClass.grade_level} - Section {studentClass.section}</h1>
-            {subject && <div style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 4 }}>{subject}</div>}
+            {subject && <div style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 4 }}>{subject ? String(subject).charAt(0).toUpperCase() + String(subject).slice(1) : ''}</div>}
           </div>
         </div>
 
@@ -824,7 +897,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                   <div>
                     <div className="card-title">Chapter {chapterContent.chapter_number} - {chapterContent.book_name}</div>
                     <div className="card-subtitle">
-                      {chapterContent.subject} · {chapterContent.is_customized ? "Customized" : "Standard"} Content
+                      {chapterContent.subject ? String(chapterContent.subject).charAt(0).toUpperCase() + String(chapterContent.subject).slice(1) : ''} · {chapterContent.is_customized ? "Customized" : "Standard"} Content
                     </div>
                   </div>
                 </div>
@@ -927,7 +1000,7 @@ export default function ClassDetails({ params }: { params: Promise<{ id: string 
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>Subject</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--orange)" }}>{subject}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--orange)" }}>{subject ? String(subject).charAt(0).toUpperCase() + String(subject).slice(1) : ''}</span>
                   </div>
                 </div>
               </div>

@@ -191,7 +191,7 @@ export default function AssignmentsPage() {
                   )}
                 </div>
                 <div className="atr-class">
-                  <span className="atr-class-name">{a.subject}</span>
+                  <span className="atr-class-name">{a.subject ? String(a.subject).charAt(0).toUpperCase() + String(a.subject).slice(1) : ''}</span>
                 </div>
                 <div className="atr-due">{a.dueDate}</div>
                 <div className="atr-progress">

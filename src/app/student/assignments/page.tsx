@@ -115,7 +115,7 @@ export default function StudentAssignments() {
                   {a.title}
                 </div>
                 <div className="assign-sub">
-                  <span style={{ color: a.color, fontWeight: 600 }}>{a.subject}</span> ·
+                  <span style={{ color: a.color, fontWeight: 600 }}>{a.subject ? String(a.subject).charAt(0).toUpperCase() + String(a.subject).slice(1) : ''}</span> ·
                   <span style={{
                     color: a.status === 'pending' && a.due.includes('Tomorrow') ? 'var(--orange)' :
                       a.status === 'overdue' ? 'var(--red)' : ''

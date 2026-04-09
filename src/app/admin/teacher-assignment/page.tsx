@@ -101,7 +101,7 @@ export default function TeacherAssignmentPage() {
         if (Array.isArray(c.teachers)) {
           loaded = loaded.concat(
             c.teachers.map((t) => ({
-              id: `${c.class_id}-${t.teacher_id}-${t.subject}`,
+              id: `${c.class_id}-${t.teacher_id}-${t.subject ? String(t.subject).charAt(0).toUpperCase() + String(t.subject).slice(1) : ''}`,
               class_id: c.class_id,
               section: c.section,
               subject: t.subject,
@@ -123,7 +123,7 @@ export default function TeacherAssignmentPage() {
               if (Array.isArray(data.teachers)) {
                 loaded = loaded.concat(
                   data.teachers.map((t) => ({
-                    id: `${c.class_id}-${t.teacher_id}-${t.subject}`,
+                    id: `${c.class_id}-${t.teacher_id}-${t.subject ? String(t.subject).charAt(0).toUpperCase() + String(t.subject).slice(1) : ''}`,
                     class_id: c.class_id,
                     section: c.section,
                     subject: t.subject,
@@ -305,7 +305,7 @@ export default function TeacherAssignmentPage() {
         return;
       }
 
-      const id = editingId ?? `${payload.class_id}-${payload.teacher_id}-${payload.subject}`;
+      const id = editingId ?? `${payload.class_id}-${payload.teacher_id}-${payload.subject ? String(payload.subject).charAt(0).toUpperCase() + String(payload.subject).slice(1) : ''}`;
       setAssignments((prev) => [...prev, { ...payload, id }]);
       closeModal();
     } catch (reqErr) {
@@ -402,7 +402,7 @@ export default function TeacherAssignmentPage() {
                     <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={{ padding: "14px 20px", fontWeight: 600 }}>{className}</td>
                       <td style={{ padding: "14px 20px" }}>{r.section}</td>
-                      <td style={{ padding: "14px 20px" }}>{r.subject}</td>
+                      <td style={{ padding: "14px 20px" }}>{r.subject ? String(r.subject).charAt(0).toUpperCase() + String(r.subject).slice(1) : ''}</td>
                       <td style={{ padding: "14px 20px" }}>
                         {teacherName}
                         {r.is_classroom_teacher && (
@@ -498,7 +498,7 @@ export default function TeacherAssignmentPage() {
                         </option>
                       ))}
                       {form.subject && !subjectOptions.includes(form.subject) && (
-                        <option value={form.subject}>{form.subject} (assigned)</option>
+                        <option value={form.subject}>{form.subject ? String(form.subject).charAt(0).toUpperCase() + String(form.subject).slice(1) : ''} (assigned)</option>
                       )}
                     </select>
                   ) : (

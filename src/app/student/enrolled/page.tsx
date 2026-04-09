@@ -124,7 +124,7 @@ export default function MyEnrolledClasses() {
                           }}>
                             {t.subject.substring(0, 2).toUpperCase()}
                           </div>
-                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{t.subject}</span>
+                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{t.subject ? String(t.subject).charAt(0).toUpperCase() + String(t.subject).slice(1) : ''}</span>
                         </div>
                       </td>
                       <td style={{ padding: "16px 24px" }}>

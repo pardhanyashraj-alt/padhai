@@ -243,7 +243,7 @@ export default function StudentDashboard() {
                 <div className="class-row" key={teacher.teacher_id}>
                   <div className="class-icon avatar" style={{ background: color }}>{initials}</div>
                   <div className="class-info">
-                    <div className="class-name">{teacher.subject}</div>
+                    <div className="class-name">{teacher.subject ? String(teacher.subject).charAt(0).toUpperCase() + String(teacher.subject).slice(1) : ''}</div>
                     <div className="class-meta">{teacher.first_name} {teacher.last_name} {teacher.is_classroom_teacher ? '· Classroom Teacher' : ''}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>

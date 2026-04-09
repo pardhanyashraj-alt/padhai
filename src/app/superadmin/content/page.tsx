@@ -579,7 +579,7 @@ export default function ContentPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{b.book_name}</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, background: "#EDE9FE", color: "#7C3AED", padding: "3px 8px", borderRadius: 6 }}>{b.subject}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, background: "#EDE9FE", color: "#7C3AED", padding: "3px 8px", borderRadius: 6 }}>{b.subject ? String(b.subject).charAt(0).toUpperCase() + String(b.subject).slice(1) : ''}</span>
                         <span style={{ fontSize: 11, fontWeight: 600, background: "#DBEAFE", color: "#1E40AF", padding: "3px 8px", borderRadius: 6 }}>Class {b.class_grade}</span>
                         <span style={{ fontSize: 11, fontWeight: 600, background: "#D1FAE5", color: "var(--green-dark)", padding: "3px 8px", borderRadius: 6 }}>{b.chapters.length} chapter{b.chapters.length !== 1 ? "s" : ""}</span>
                       </div>
@@ -758,7 +758,7 @@ export default function ContentPage() {
                   <div>
                     <div className="card-title">Ch {preview.chapter_number}: {preview.chapter_title}</div>
                     <div style={{ fontSize: 12, color: "var(--text-meta)", marginTop: 2 }}>
-                      {preview.book_name} · Class {preview.class_grade} · {preview.board} · {preview.subject}
+                      {preview.book_name} · Class {preview.class_grade} · {preview.board} · {preview.subject ? String(preview.subject).charAt(0).toUpperCase() + String(preview.subject).slice(1) : ''}
                       {preview.isbn && ` · ISBN ${preview.isbn}`}
                     </div>
                   </div>
@@ -857,7 +857,7 @@ export default function ContentPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>Ch {ch.chapter_number}: {ch.chapter_title}</div>
                     <div style={{ fontSize: 12, color: "var(--text-meta)", marginTop: 2 }}>
-                      {ch.book_name} · Class {ch.class_grade} · {ch.subject}
+                      {ch.book_name} · Class {ch.class_grade} · {ch.subject ? String(ch.subject).charAt(0).toUpperCase() + String(ch.subject).slice(1) : ''}
                     </div>
                   </div>
                 </div>

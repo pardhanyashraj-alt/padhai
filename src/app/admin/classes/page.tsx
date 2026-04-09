@@ -348,7 +348,7 @@ export default function ClassesPage() {
                     <option key={subj} value={subj}>{subj}</option>
                   ))}
                 </select>
-                {assignErrors.subject && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{assignErrors.subject}</div>}
+                {assignErrors.subject && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{assignErrors.subject ? String(assignErrors.subject).charAt(0).toUpperCase() + String(assignErrors.subject).slice(1) : ''}</div>}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, padding: "14px 16px", background: "#F8FAFC", borderRadius: 10, border: "1px solid var(--border)", cursor: "pointer" }}
                 onClick={() => setAssignForm(prev => ({ ...prev, is_classroom_teacher: !prev.is_classroom_teacher }))}>
@@ -426,7 +426,7 @@ export default function ClassesPage() {
                                   <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
                                     {teacher ? `${teacher.first_name} ${teacher.last_name}` : t.teacher_id.slice(0, 8) + "…"}
                                   </div>
-                                  <div style={{ fontSize: 12, color: "var(--text-meta)" }}>{t.subject}</div>
+                                  <div style={{ fontSize: 12, color: "var(--text-meta)" }}>{t.subject ? String(t.subject).charAt(0).toUpperCase() + String(t.subject).slice(1) : ''}</div>
                                 </div>
                               </div>
                               <div style={{ display: "flex", gap: 6 }}>

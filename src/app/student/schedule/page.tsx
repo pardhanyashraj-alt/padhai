@@ -171,7 +171,7 @@ export default function StudentSchedule() {
                         </div>
                         <div className="sch-body">
                           <div className="sch-title" style={{ fontSize: 16 }}>
-                            {item.subject}
+                            {item.subject ? String(item.subject).charAt(0).toUpperCase() + String(item.subject).slice(1) : ''}
                           </div>
                           <div className="sch-detail">
                             {item.room
@@ -298,7 +298,7 @@ export default function StudentSchedule() {
                                     borderLeft: `3px solid ${fg}`,
                                   }}
                                 >
-                                  {cls.subject}
+                                  {cls.subject ? String(cls.subject).charAt(0).toUpperCase() + String(cls.subject).slice(1) : ''}
                                   {cls.room ? ` · Rm ${cls.room}` : ""}
                                 </div>
                               </div>

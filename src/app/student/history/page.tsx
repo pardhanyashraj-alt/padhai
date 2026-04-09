@@ -106,7 +106,7 @@ export default function StudentHistory() {
 
           {quizHistory.map((attempt) => (
             <div className="table-row" key={attempt.quiz_attempt_id} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
-               <div className="td-name" style={{ fontWeight: 600 }}>{attempt.subject}</div>
+               <div className="td-name" style={{ fontWeight: 600 }}>{attempt.subject ? String(attempt.subject).charAt(0).toUpperCase() + String(attempt.subject).slice(1) : ''}</div>
                <div className="td-class" style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: 700 }}>
                  {attempt.score}/{attempt.total_questions}
                </div>

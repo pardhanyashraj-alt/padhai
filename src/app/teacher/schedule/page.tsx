@@ -205,7 +205,7 @@ export default function TeacherSchedulePage() {
                           )}
                         </div>
                         <div className="sch-body">
-                          <div className="sch-title">{event.subject}</div>
+                          <div className="sch-title">{event.subject ? String(event.subject).charAt(0).toUpperCase() + String(event.subject).slice(1) : ''}</div>
                           <div className="sch-detail">
                             {CLASS_LABELS[event.class_id] ??
                               `Class ${event.class_id}`}{" "}

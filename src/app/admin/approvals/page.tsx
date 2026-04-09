@@ -96,7 +96,7 @@ export default function ApprovalsPage() {
                     {typeIcon(r.type)}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>{r.subject}</div>
+                    <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>{r.subject ? String(r.subject).charAt(0).toUpperCase() + String(r.subject).slice(1) : ''}</div>
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{r.description}</div>
                     <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-meta)' }}>
                       <span>{r.from} ({r.role})</span>

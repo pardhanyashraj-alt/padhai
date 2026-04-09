@@ -157,7 +157,7 @@ export default function MyClasses() {
                     {initials}
                   </div>
                   <div className="class-info">
-                    <div className="class-name">{subject}</div>
+                    <div className="class-name">{subject ? String(subject).charAt(0).toUpperCase() + String(subject).slice(1) : ''}</div>
                     <div className="class-meta">
                       {teacher ? `${teacher.first_name} ${teacher.last_name}${teacher.is_classroom_teacher ? ' (Class Teacher)' : ''}` : `Grade ${studentClass.grade_level} · Section ${studentClass.section}`}
                     </div>
